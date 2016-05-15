@@ -14,7 +14,7 @@ class TestKFTarget(unittest.TestCase):
         model = mht.models.constant_velocity_2d(0.1)
         self.x0 = np.matrix([[0.0]] * 4)
         self.P0 = np.eye(4)
-        self.target = mht.kf.Target(model, self.x0, self.P0)
+        self.target = mht.kf.KFilter(model, self.x0, self.P0)
 
     def test_predict(self):
         """Predict step."""
@@ -26,7 +26,7 @@ class TestKFTarget(unittest.TestCase):
         """Correction step."""
         z = np.matrix([[2.0]] * 2)
         R = np.eye(2)
-        m = mht.Measurement(z, R, mht.models.velocity_measurement)
+        m = mht.Report(z, R, mht.models.velocity_measurement)
         self.target.correct(m)
         self.assertAlmostEqual(self.target.x[1], 0.0)
         self.assertAlmostEqual(self.target.x[2], 1.0)

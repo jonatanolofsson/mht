@@ -1,7 +1,7 @@
 """Kalman Filter implementation for MHT target."""
 
 
-class Target:
+class KFilter:
     """Kalman-filter target."""
 
     def __init__(self, model, x0, P0):
@@ -26,3 +26,7 @@ class Target:
         K = self.P * H.T * S.I
         self.x += K * dz
         self.P -= K * H * self.P
+
+    def score(self, m):
+        """Get the score of assigning a measurement to the filter."""
+        return 0.0

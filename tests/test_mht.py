@@ -2,7 +2,10 @@
 
 import unittest
 import numpy as np
+import os
+import sys
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import mht
 
 
@@ -24,7 +27,9 @@ class TestLap(unittest.TestCase):
     def test_lap(self):
         """Test LAP solver."""
         res = mht.lap(MURTY_COST)
-        self.assertAlmostEqual(MURTY_COST[range(10), res[1]].sum(), 0.0)
+        self.assertAlmostEqual(
+            MURTY_COST[range(len(res[1])), res[1]].sum(),
+            res[0])
 
 
 class TestMurty(unittest.TestCase):
@@ -43,16 +48,27 @@ class TestMurty(unittest.TestCase):
                 self.assertGreaterEqual(res[0], pre_res[0])
             pre_res = res
             n += 1
-        self.assertEqual(n, 512)
+        self.assertEqual(n, 986410)
 
     def test_murty_asym(self):
         """Test asymmetric inputs for murty."""
         pre_res = None
         n = 0
-        N = 3
-        gen = mht.murty(MURTY_COST[0:-5, :])
-        for k in range(N):
-            res = next(gen)
+        for res in mht.murty(MURTY_COST[:5, :]):
+            self.assertAlmostEqual(
+                MURTY_COST[range(len(res[1])), res[1]].sum(), res[0])
+            if pre_res is not None:
+                self.assertGreaterEqual(res[0], pre_res[0])
+            pre_res = res
+            n += 1
+        self.assertEqual(n, 18730)
+
+    def test_murty_asym_small(self):
+        """Test asymmetric inputs for murty."""
+        pre_res = None
+        n = 0
+        # print(MURTY_COST[:2, :]
+        for res in mht.murty(MURTY_COST[:2, :]):
             # print(res)
             self.assertAlmostEqual(
                 MURTY_COST[range(len(res[1])), res[1]].sum(), res[0])
@@ -60,5 +76,57 @@ class TestMurty(unittest.TestCase):
                 self.assertGreaterEqual(res[0], pre_res[0])
             pre_res = res
             n += 1
-        gen.close()
-        self.assertEqual(n, N)
+        self.assertEqual(n, 82)
+
+
+class TestHypothesisFactory(unittest.TestCase):
+    """Test the generation of global hypotheses."""
+
+    def setUp(self):
+        """Set up testcase."""
+        self.tracker = mht.MHT()
+        self.tracker.targets = [
+            mht.Target(mht.kf.KFilter(
+                mht.models.constant_velocity_2d(0.1),
+                np.matrix([[0.0], [0.0], [0.0], [0.0]]),
+                np.eye(4)
+            )),
+            mht.Target(mht.kf.KFilter(
+                mht.models.constant_velocity_2d(0.1),
+                np.matrix([[10.0], [10.0], [0.0], [0.0]]),
+                np.eye(4)
+            ))
+        ]
+
+    def test_hypothesis_factory(self):
+        """Test the generation of global hypotheses."""
+        self.tracker.register_scan(mht.Scan(
+            mht.sensors.EyeOfMordor(5, 10),
+            [
+                mht.Report(
+                    np.matrix([[8.0], [8.0]]),
+                    np.eye(2),
+                    mht.models.velocity_measurement),
+                mht.Report(
+                    np.matrix([[2.0], [2.0]]),
+                    np.eye(2),
+                    mht.models.velocity_measurement)
+            ]))
+
+
+class TestPermgen(unittest.TestCase):
+    """Test permutation generation."""
+
+    def test_permgen(self):
+        """Test permgen function."""
+        D = [[(1, 'a'), (1, 'b'), (2, 'c')],
+             [(1, 'd'), (2, 'e'), (3, 'f')],
+             [(3, 'g')]]
+        k = 0
+        for res in mht.permgen(D):
+            k += 1
+        self.assertEqual(k, 9)
+
+
+if __name__ == '__main__':
+    unittest.main()
