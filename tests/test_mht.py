@@ -48,7 +48,7 @@ class TestMurty(unittest.TestCase):
                 self.assertGreaterEqual(res[0], pre_res[0])
             pre_res = res
             n += 1
-        self.assertEqual(n, 986410)
+        self.assertEqual(n, 3628800)
 
     def test_murty_asym(self):
         """Test asymmetric inputs for murty."""
@@ -61,7 +61,7 @@ class TestMurty(unittest.TestCase):
                 self.assertGreaterEqual(res[0], pre_res[0])
             pre_res = res
             n += 1
-        self.assertEqual(n, 18730)
+        self.assertEqual(n, 30240)
 
     def test_murty_asym_small(self):
         """Test asymmetric inputs for murty."""
@@ -76,7 +76,7 @@ class TestMurty(unittest.TestCase):
                 self.assertGreaterEqual(res[0], pre_res[0])
             pre_res = res
             n += 1
-        self.assertEqual(n, 82)
+        self.assertEqual(n, 90)
 
 
 class TestHypothesisFactory(unittest.TestCase):

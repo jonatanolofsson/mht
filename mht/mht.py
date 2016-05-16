@@ -33,13 +33,21 @@ class MHT:
 
     def _hypothesis_factory(self, targets, scan):
         """Generate global hypotheses."""
-        print()
         new_targets = {}
 
         def new_target(m):
             if m not in new_targets:
                 obj = new_targets[m] = Target()
                 self.targets.append(obj)
+
+        def get_pgen(scan, tH):
+            target_assignment = [
+                (scan.reports[r],
+                 targets[a] if a < N else new_target(a))
+                for r, a in enumerate(tH[1]) if a < 2*N]
+
+            return permgen([target.score(report) for
+                            report, target in target_assignment])
 
         M = len(scan.reports)
         N = len(targets)
@@ -49,31 +57,23 @@ class MHT:
         for t, target in enumerate(targets):
             C[:, t] = [-max(x[0] for x in target.score(r))
                        for r in scan.reports]
-        print(C)
         target_hypgen = murty(C)
-        for H in target_hypgen:
-            print(H)
-        exit()
 
         Q = queue.PriorityQueue()
         tH = next(target_hypgen)
         nxt_tH = next(target_hypgen)
-        while True:
-            if Q.queue[0][0] > nxt_tH[0]:
+        Q.put((tH[0], get_pgen(scan, tH)))
+        while not Q.empty():
+            if nxt_tH and Q.queue[0][0] > nxt_tH[0]:
                 tH = nxt_tH
                 nxt_tH = next(target_hypgen)
-                target_assignment = [
-                    (scan.reports[r],
-                     targets[a] if a < N else new_target(a))
-                    for r, a in enumerate(tH[1]) if a < 2*N]
-
-                pgen = permgen([target.score(report) for
-                                report, target in target_assignment])
+                pgen = get_pgen(scan, tH)
             else:
                 pgen = Q.get_nowait()[1]
 
             for track_assignment, next_trackcost in pgen:
-                yield track_assignment
+                # yield track_assignment
+                print(track_assignment)
                 if next_trackcost > Q.queue[0][0]:
                     Q.put((next_trackcost, pgen))
                     break
@@ -109,7 +109,7 @@ def permgen(lists):
 def murty(C):
     """Algorithm due to Murty."""
     try:
-        large_value = 10000
+        LARGE = 10000
         Q = queue.PriorityQueue()
         M = C.shape[0]
         N = C.shape[1]
@@ -130,32 +130,31 @@ def murty(C):
                           if x not in S[3] and x not in S[1])
 
             removed_values = C[S[4], S[5]]
-            C[S[4], S[5]] = large_value
+            C[S[4], S[5]] = LARGE
 
             C_ = C[rmap, :][:, cmap]
             for t in range(M - ni):
                 removed_value = C_[t, t]
-                C_[t, t] = large_value
+                C_[t, t] = LARGE
 
                 cost, lassign = lap(C_[t:, t:])[0:2]
-                if large_value in C_[range(t, t + len(lassign)), lassign + t]:
-                    break
-                cost += C[S[2], S[3]].sum()
-                cost += C_[range(t), range(t)].sum()
-                assign = [None] * M
-                for r in range(ni):
-                    assign[S[2][r]] = S[3][r]
-                for r in range(t):
-                    assign[rmap[r]] = cmap[r]
-                for r in range(len(lassign)):
-                    assign[rmap[r + t]] = cmap[lassign[r] + t]
+                if LARGE not in C_[range(t, t + len(lassign)), lassign + t]:
+                    cost += C[S[2], S[3]].sum()
+                    cost += C_[range(t), range(t)].sum()
+                    assign = [None] * M
+                    for r in range(ni):
+                        assign[S[2][r]] = S[3][r]
+                    for r in range(t):
+                        assign[rmap[r]] = cmap[r]
+                    for r in range(len(lassign)):
+                        assign[rmap[r + t]] = cmap[lassign[r] + t]
 
-                nxt = (cost, assign,
-                       S[2] + tuple(rmap[x] for x in range(t)),
-                       S[3] + tuple(cmap[:t]),
-                       S[4] + (rmap[t],),
-                       S[5] + (cmap[t],))
-                Q.put(nxt)
+                    nxt = (cost, assign,
+                           S[2] + tuple(rmap[x] for x in range(t)),
+                           S[3] + tuple(cmap[:t]),
+                           S[4] + (rmap[t],),
+                           S[5] + (cmap[t],))
+                    Q.put(nxt)
                 C_[t, t] = removed_value
             C[S[4], S[5]] = removed_values
     except GeneratorExit:
