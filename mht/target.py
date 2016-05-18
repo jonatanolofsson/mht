@@ -14,14 +14,16 @@ class Target:
 
     def assign(self, parent, m):
         """Assign measurement to track node to expand tree."""
-        print('Assigning', m, 'to', parent)
         if m not in self.new_tracks:
             self.new_tracks[m] = Track(m, parent, self)
         return self.new_tracks[m]
 
+    def finalize_assignment(self):
+        """Finalize assigment."""
+        self.tracks = self.new_tracks.values()
+
     def predict(self, dT):
         """Move to next time step."""
-        self.tracks = self.new_tracks.values()
         for track in self.tracks:
             track.predict(dT)
         self.reset()

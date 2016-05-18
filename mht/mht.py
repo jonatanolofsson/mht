@@ -36,12 +36,13 @@ class MHT:
                 for track in target.tracks:
                     track.is_new_target = lambda: False
 
-        self.global_hypotheses = {}
+        gh = GlobalHypothesis(self, initial_targets, None, None)
+        self.global_hypotheses = {gh: gh}
 
     def predict(self, dT):
         """Move to next timestep."""
-        for t in self.targets:
-            t.predict(dT)
+        for target in self.targets:
+            target.predict(dT)
 
     def _relevant_targets(self, scan):
         """Filter out relevant targets."""
@@ -58,13 +59,16 @@ class MHT:
             new_hypotheses[gh] = gh
             best_hyp = gh if best_hyp is None else min(best_hyp, gh)
             k += 1
-            print(gh)
-            print('targets:', targets)
-            print('hyp:', hyp)
             plot.plot_hypothesis(gh)
             plt.axis([-1, 11, -1, 11])
             plt.show()
         self.global_hypotheses = new_hypotheses
+        for target in self.targets:
+            target.finalize_assignment()
+
+        # Delete targets with no track.
+        self.targets = [target for target in self.targets
+                        if len(target.tracks) > 0]
 
     def _hypothesis_factory(self, targets, scan):
         """Generate global hypotheses."""
@@ -79,20 +83,15 @@ class MHT:
             return new_target_reports[report]
 
         def get_permgen(scan, tH):
-            target_assignment = []
-            unassigned = []
-            for r, a in enumerate(tH[1]):
-                if a < 2*N:
-                    target_assignment.append(
-                        (scan.reports[r],
-                         targets[a] if a < N else
-                         new_target(scan.reports[r])))
-                else:
-                    unassigned.append(scan.reports[r])
+            target_assignment = ((
+                report,
+                targets[a] if a < N else
+                new_target(report) if a < 2*N else
+                None)
+                for report, a in zip(scan.reports, tH[1]))
 
-            return (permgen([target.score(report) for
-                            report, target in target_assignment]),
-                    unassigned)
+            return permgen((target.score(report) if target else [(0, None)] for
+                            report, target in target_assignment))
 
         M = len(scan.reports)
         N = len(targets)
@@ -107,22 +106,22 @@ class MHT:
 
         Q = queue.PriorityQueue()
         nxt_tH = next(target_hypgen)
-        Q.put((nxt_tH[0], *get_permgen(scan, nxt_tH)))
+        Q.put((nxt_tH[0], get_permgen(scan, nxt_tH)))
         nxt_tH = next(target_hypgen, None)
         while not Q.empty():
-            pgen, unassigned = Q.get_nowait()[1:3]
+            pgen= Q.get_nowait()[1]
             next_break = min([x[0] for x in [
                 nxt_tH,
                 Q.queue[0] if not Q.empty() else None,
                 ] if x] + [LARGE])
             for track_assignment, next_trackcost in pgen:
-                yield list(zip(scan.reports, track_assignment)), unassigned
+                yield list(zip(scan.reports, track_assignment))
                 if next_trackcost and next_trackcost > next_break:
-                    Q.put((next_trackcost, pgen, unassigned))
+                    Q.put((next_trackcost, pgen))
                     break
 
             if nxt_tH and (Q.empty() or Q.queue[0][0] > nxt_tH[0]):
-                Q.put((nxt_tH[0], *get_permgen(scan, nxt_tH)))
+                Q.put((nxt_tH[0], get_permgen(scan, nxt_tH)))
                 nxt_tH = next(target_hypgen, None)
 
 
