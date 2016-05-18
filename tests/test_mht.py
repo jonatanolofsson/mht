@@ -84,33 +84,32 @@ class TestHypothesisFactory(unittest.TestCase):
 
     def setUp(self):
         """Set up testcase."""
-        self.tracker = mht.MHT()
-        self.tracker.targets = [
+        self.tracker = mht.MHT(initial_targets=[
             mht.Target(mht.kf.KFilter(
                 mht.models.constant_velocity_2d(0.1),
                 np.matrix([[0.0], [0.0], [0.0], [0.0]]),
                 np.eye(4)
-            )),
+            ), 0),
             mht.Target(mht.kf.KFilter(
                 mht.models.constant_velocity_2d(0.1),
                 np.matrix([[10.0], [10.0], [0.0], [0.0]]),
                 np.eye(4)
-            ))
-        ]
+            ), 0)
+        ])
 
     def test_hypothesis_factory(self):
         """Test the generation of global hypotheses."""
         self.tracker.register_scan(mht.Scan(
-            mht.sensors.EyeOfMordor(5, 10),
+            mht.sensors.EyeOfMordor(5, 10, 12),
             [
                 mht.Report(
                     np.matrix([[8.0], [8.0]]),
                     np.eye(2),
-                    mht.models.velocity_measurement),
+                    mht.models.position_measurement),
                 mht.Report(
                     np.matrix([[2.0], [2.0]]),
                     np.eye(2),
-                    mht.models.velocity_measurement)
+                    mht.models.position_measurement)
             ]))
 
 

@@ -1,5 +1,15 @@
 """Kalman Filter implementation for MHT target."""
 
+from math import log as ln
+from math import sqrt
+from math import pi
+from numpy.linalg import det
+
+
+def from_report(r):
+    """Init KFilter from report."""
+    return KFilter()
+
 
 class KFilter:
     """Kalman-filter target."""
@@ -10,7 +20,7 @@ class KFilter:
         self.x = x0
         self.P = P0
 
-    def __str__(self):
+    def __repr__(self):
         """Return string representation of measurement."""
         return "T({}, P)".format(self.x)
 
@@ -27,6 +37,15 @@ class KFilter:
         self.x += K * dz
         self.P -= K * H * self.P
 
+        # FIXME: lambda_ex / PD according to Bar-Shalom 2007
+        score = dz.T * S.I * dz / 2.0 + ln(2 * pi * sqrt(det(S)))
+        return float(score)
+
     def score(self, m):
         """Get the score of assigning a measurement to the filter."""
-        return 0.0
+        zhat, H = m.mfn(self.x)
+        dz = m.z - zhat
+        S = H * self.P * H.T + m.R
+        # FIXME: lambda_ex / PD according to Bar-Shalom 2007
+        score = dz.T * S.I * dz / 2.0 + ln(2 * pi * sqrt(det(S)))
+        return float(score)

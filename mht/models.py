@@ -22,6 +22,13 @@ def constant_velocity_2d(q):
     return mdl
 
 
+def position_measurement(x):
+    """Velocity measurement model."""
+    H = np.matrix([[1, 0, 0, 0],
+                   [0, 1, 0, 0]])
+    return (H * x, H)
+
+
 def velocity_measurement(x):
     """Velocity measurement model."""
     H = np.matrix([[0, 0, 1, 0],
