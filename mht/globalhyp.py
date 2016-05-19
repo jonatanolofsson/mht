@@ -45,6 +45,7 @@ class GlobalHypothesis:
 
             # FIXME
             self.my_score = \
+                scan.sensor.score_false * self.n_false + \
                 scan.sensor.score_miss * self.n_missed + \
                 scan.sensor.score_new * self.n_new
 

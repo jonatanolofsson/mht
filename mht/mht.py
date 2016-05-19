@@ -3,12 +3,12 @@
 import queue
 import numpy as np
 from copy import copy
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
+# from . import plot
 
 from .target import Target
 from . import kf
 from . import models
-from . import plot
 from .globalhyp import GlobalHypothesis
 from .hypgen import permgen
 from .hypgen import murty
@@ -38,6 +38,7 @@ class MHT:
 
         gh = GlobalHypothesis(self, initial_targets, None, None)
         self.global_hypotheses = {gh: gh}
+        self.best_hyp = gh
 
     def predict(self, dT):
         """Move to next timestep."""
@@ -52,16 +53,17 @@ class MHT:
         """Register scan."""
         targets = self._relevant_targets(scan)
         new_hypotheses = {}
-        best_hyp = None
+        self.best_hyp = None
         k = 0
         for hyp in self._hypothesis_factory(targets, scan):
             gh = GlobalHypothesis(self, targets, scan, hyp)
             new_hypotheses[gh] = gh
-            best_hyp = gh if best_hyp is None else min(best_hyp, gh)
+            self.best_hyp = gh if self.best_hyp is None else \
+                min(self.best_hyp, gh)
             k += 1
-            plot.plot_hypothesis(gh)
-            plt.axis([-1, 11, -1, 11])
-            plt.show()
+            # plot.plot_hypothesis(gh)
+            # plt.axis([-1, 11, -1, 11])
+            # plt.show()
         self.global_hypotheses = new_hypotheses
         for target in self.targets:
             target.finalize_assignment()
@@ -69,6 +71,10 @@ class MHT:
         # Delete targets with no track.
         self.targets = [target for target in self.targets
                         if len(target.tracks) > 0]
+
+    def mlhyp(self):
+        """Get most likely hypothesis."""
+        return self.best_hyp
 
     def _hypothesis_factory(self, targets, scan):
         """Generate global hypotheses."""
@@ -109,7 +115,7 @@ class MHT:
         Q.put((nxt_tH[0], get_permgen(scan, nxt_tH)))
         nxt_tH = next(target_hypgen, None)
         while not Q.empty():
-            pgen= Q.get_nowait()[1]
+            pgen = Q.get_nowait()[1]
             next_break = min([x[0] for x in [
                 nxt_tH,
                 Q.queue[0] if not Q.empty() else None,

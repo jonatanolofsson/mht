@@ -60,6 +60,33 @@ class TestMHT(unittest.TestCase):
         self.assertAlmostEqual(list(self.tracker.global_hypotheses.values())[0].tracks[1].filter.x[0], 1)  # noqa
         self.assertAlmostEqual(list(self.tracker.global_hypotheses.values())[0].tracks[1].filter.x[1], 9)  # noqa
 
+    def test_track(self):
+        """Test repeated updates from moving targets."""
+        target_1 = np.matrix([[0.0], [0.0], [1.0], [1.0]])
+        target_2 = np.matrix([[0.0], [10.0], [1.0], [-1.0]])
+        for t in range(10):
+            if t > 0:
+                self.tracker.predict(1)
+                target_1[0:2] += target_1[2:]
+                target_2[0:2] += target_2[2:]
+
+            self.tracker.register_scan(mht.Scan(
+                mht.sensors.EyeOfMordor(5, 10, 12),
+                [
+                    mht.Report(
+                        target_1[0:2] + np.random.normal(size=(2, 1)) * 0.3,
+                        np.eye(2),
+                        mht.models.position_measurement),
+                    mht.Report(
+                        target_2[0:2] + np.random.normal(size=(2, 1)) * 0.3,
+                        np.eye(2),
+                        mht.models.position_measurement)
+                ]))
+            print(self.tracker.global_hypotheses)
+            mht.plot.plot_hypothesis(self.tracker.mlhyp())
+            mht.plot.plt.axis([-1, 11, -1, 11])
+            mht.plot.plt.show()
+
 
 if __name__ == '__main__':
     unittest.main()
