@@ -82,10 +82,6 @@ class TestMHT(unittest.TestCase):
                         np.eye(2),
                         mht.models.position_measurement)
                 ]))
-            print(self.tracker.global_hypotheses)
-            mht.plot.plot_hypothesis(self.tracker.mlhyp())
-            mht.plot.plt.axis([-1, 11, -1, 11])
-            mht.plot.plt.show()
 
 
 if __name__ == '__main__':

@@ -43,16 +43,15 @@ class GlobalHypothesis:
                              if track is not None)
             self.n_false = len(self.unassigned)
 
+            self.track_score = sum(track.score() for track in self.tracks)
+
             # FIXME
-            self.my_score = \
+            self.my_score = self.track_score + \
                 scan.sensor.score_false * self.n_false + \
                 scan.sensor.score_miss * self.n_missed + \
                 scan.sensor.score_new * self.n_new
 
-            self.total_score = \
-                sum(track.score() for track in self.tracks) \
-                + self.parent_score \
-                + self.my_score
+            self.total_score = self.parent_score + self.my_score
 
     def score(self):
         """Return the total score of the hypothesis."""

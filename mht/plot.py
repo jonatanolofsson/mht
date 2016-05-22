@@ -9,6 +9,27 @@ from matplotlib.patches import Ellipse
 CMAP = matplotlib.colors.ListedColormap(RandomState(0).rand(256, 3))
 
 
+def plot_trace(trace, c=0, covellipse=True, **kwargs):
+    """Plot single trace."""
+    x = []
+    y = []
+    for track in trace:
+        pos = (float(track.filter.x[0]), float(track.filter.x[1]))
+        x.append(pos[0])
+        y.append(pos[1])
+        if covellipse:
+            ca = plot_cov_ellipse(track.filter.P[0:2, 0:2], pos)
+            ca.set_alpha(0.3)
+            ca.set_facecolor(CMAP(c))
+    plt.plot(x, y, marker='*', color=CMAP(c))
+
+
+def plot_hyptrace(gh, cseed=0, covellipse=True, **kwargs):
+    """Plot hypothesis trace."""
+    for c, track in enumerate(gh.tracks):
+        plot_trace(track.trace(), c + cseed, covellipse, **kwargs)
+
+
 def plot_cov_ellipse(cov, pos, nstd=2, **kwargs):
     """Plot confidence ellipse."""
     def eigsorted(cov):
@@ -27,14 +48,23 @@ def plot_cov_ellipse(cov, pos, nstd=2, **kwargs):
     return ellip
 
 
-def plot_hypothesis(gh):
+def plot_hypothesis(gh, cseed=0, covellipse=True, unassigned=True):
     """Plot targets."""
     for c, track in enumerate(gh.tracks):
         pos = (track.filter.x[0], track.filter.x[1])
-        ca = plot_cov_ellipse(track.filter.P[0:2, 0:2], pos)
-        ca.set_alpha(0.5)
-        ca.set_facecolor(CMAP(c))
-        plt.scatter(*pos, c=c, cmap=CMAP, edgecolors='k')
-    plt.plot([float(u.z[0]) for u in gh.unassigned],
-             [float(u.z[1]) for u in gh.unassigned],
-             marker='*', color='r', linestyle='None')
+        plt.scatter(*pos, c=c+cseed, cmap=CMAP, edgecolors='k')
+        if covellipse:
+            ca = plot_cov_ellipse(track.filter.P[0:2, 0:2], pos)
+            ca.set_alpha(0.5)
+            ca.set_facecolor(CMAP(c + cseed))
+    if unassigned:
+        plt.plot([float(u.z[0]) for u in gh.unassigned],
+                 [float(u.z[1]) for u in gh.unassigned],
+                 marker='*', color='r', linestyle='None')
+
+
+def plot_scan(scan):
+    """Plot reports from scan."""
+    plt.plot([float(r.z[0]) for r in scan.reports],
+             [float(r.z[1]) for r in scan.reports],
+             marker='+', color='r', linestyle='None')

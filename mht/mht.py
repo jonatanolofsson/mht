@@ -24,10 +24,24 @@ def _init_target_filter(report):
     return kf.KFilter(model, x0, P0)
 
 
+class PrioItem:
+    """Item storable in PriorityQueue."""
+
+    def __init__(self, prio, data):
+        """Init."""
+        self.prio = prio
+        self.data = data
+
+    def __lt__(self, b):
+        """lt comparison."""
+        return self.prio < b.prio
+
+
 class MHT:
     """MHT class."""
 
-    def __init__(self, initial_targets=None, init_target_filter=None):
+    def __init__(self, initial_targets=None, init_target_filter=None,
+                 k_max=None):
         """Init."""
         self.init_target_filter = init_target_filter or _init_target_filter
         self.targets = initial_targets if initial_targets else []
@@ -39,6 +53,7 @@ class MHT:
         gh = GlobalHypothesis(self, initial_targets, None, None)
         self.global_hypotheses = {gh: gh}
         self.best_hyp = gh
+        self.k_max = k_max
 
     def predict(self, dT):
         """Move to next timestep."""
@@ -61,14 +76,13 @@ class MHT:
             self.best_hyp = gh if self.best_hyp is None else \
                 min(self.best_hyp, gh)
             k += 1
-            # plot.plot_hypothesis(gh)
-            # plt.axis([-1, 11, -1, 11])
-            # plt.show()
+            if self.k_max is not None and k >= self.k_max:
+                break
         self.global_hypotheses = new_hypotheses
         for target in self.targets:
             target.finalize_assignment()
 
-        # Delete targets with no track.
+        # Delete targets with no tracks.
         self.targets = [target for target in self.targets
                         if len(target.tracks) > 0]
 
@@ -84,7 +98,8 @@ class MHT:
             if report not in new_target_reports:
                 obj = new_target_reports[report] = Target(
                     self.init_target_filter(report),
-                    score=scan.sensor.score_new)
+                    score=scan.sensor.score_new,
+                    report=report)
                 self.targets.append(obj)
             return new_target_reports[report]
 
@@ -92,7 +107,7 @@ class MHT:
             target_assignment = ((
                 report,
                 targets[a] if a < N else
-                new_target(report) if a < 2*N else
+                new_target(report) if a < N + M else
                 None)
                 for report, a in zip(scan.reports, tH[1]))
 
@@ -101,33 +116,33 @@ class MHT:
 
         M = len(scan.reports)
         N = len(targets)
-        C = np.empty((M, 2*N + M))
+        C = np.empty((M, N + 2*M))
         C.fill(LARGE)
         for t, target in enumerate(targets):
             C[:, t] = [min(x[0] for x in target.score(r))
                        for r in scan.reports]
-        C[range(N), range(N, 2*N)] = scan.sensor.score_new
-        C[range(N), range(2*N, 2*N + M)] = scan.sensor.score_false
+        C[range(M), range(N, N + M)] = scan.sensor.score_new
+        C[range(M), range(N + M, N + 2*M)] = scan.sensor.score_false
         target_hypgen = murty(C)
 
         Q = queue.PriorityQueue()
         nxt_tH = next(target_hypgen)
-        Q.put((nxt_tH[0], get_permgen(scan, nxt_tH)))
+        Q.put(PrioItem(nxt_tH[0], get_permgen(scan, nxt_tH)))
         nxt_tH = next(target_hypgen, None)
         while not Q.empty():
-            pgen = Q.get_nowait()[1]
-            next_break = min([x[0] for x in [
-                nxt_tH,
-                Q.queue[0] if not Q.empty() else None,
-                ] if x] + [LARGE])
+            pgen = Q.get_nowait().data
+            next_break = min([x for x in [
+                nxt_tH[0] if nxt_tH else None,
+                Q.queue[0].prio if not Q.empty() else None,
+                ] if x is not None] + [LARGE])
             for track_assignment, next_trackcost in pgen:
                 yield list(zip(scan.reports, track_assignment))
                 if next_trackcost and next_trackcost > next_break:
-                    Q.put((next_trackcost, pgen))
+                    Q.put(PrioItem(next_trackcost, pgen))
                     break
 
-            if nxt_tH and (Q.empty() or Q.queue[0][0] > nxt_tH[0]):
-                Q.put((nxt_tH[0], get_permgen(scan, nxt_tH)))
+            if nxt_tH and (Q.empty() or Q.queue[0].prio > nxt_tH[0]):
+                Q.put(PrioItem(nxt_tH[0], get_permgen(scan, nxt_tH)))
                 nxt_tH = next(target_hypgen, None)
 
 

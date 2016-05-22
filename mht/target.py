@@ -3,14 +3,27 @@
 from copy import deepcopy
 
 
+TARGET_COUNTER = 0
+
+
 class Target:
     """Class to represent a single MHT target."""
 
-    def __init__(self, filter, score):
+    def __init__(self, filter, score, report=None):
         """Init."""
-        self.tracks = [Track(
-            None, None, self, filter=filter, initial_score=score)]
+        global TARGET_COUNTER
+        self.cid = TARGET_COUNTER
+        TARGET_COUNTER += 1
         self.reset()
+        trck = Track(None,
+                     None,
+                     self,
+                     filter=filter,
+                     initial_score=score)
+
+        self.tracks = [trck]
+        if report is not None:
+            self.new_tracks[report] = trck
 
     def assign(self, parent, m):
         """Assign measurement to track node to expand tree."""
@@ -21,12 +34,12 @@ class Target:
     def finalize_assignment(self):
         """Finalize assigment."""
         self.tracks = self.new_tracks.values()
+        self.reset()
 
     def predict(self, dT):
         """Move to next time step."""
         for track in self.tracks:
             track.predict(dT)
-        self.reset()
 
     def reset(self):
         """Reset caches etc."""
@@ -42,7 +55,7 @@ class Target:
 
     def __repr__(self):
         """String representation of object."""
-        return "T(0x{:x})".format(id(self))
+        return "T({})".format(self.cid)
 
 
 class Track:
@@ -52,6 +65,7 @@ class Track:
                  filter=None, initial_score=None):
         """Init."""
         self.parent_track_id = id(parent_track) if parent_track else id(target)
+        self.parent_track = parent_track
         self.filter = filter or deepcopy(parent_track.filter)
         if m:
             self.my_score = self.filter.correct(m)
@@ -65,8 +79,6 @@ class Track:
 
     def assign(self, m):
         """Assign measurement to track."""
-        if self.is_new_target():
-            return self
         return self.target.assign(self, m)
 
     def predict(self, dT):
@@ -78,6 +90,11 @@ class Track:
         if m is None:
             return self.my_score
         return self.filter.score(m)
+
+    def trace(self):
+        """Get the trace of tracks that led to this."""
+        tr = self.parent_track.trace() if self.parent_track else []
+        return tr + [self]
 
     def __repr__(self):
         """Return string representation of object."""
