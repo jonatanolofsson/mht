@@ -1,17 +1,17 @@
-"""Implementation of the global hypothesis class."""
+"""Implementation of the cluster-global hypothesis class."""
 
 
-def ghyphash(track_ids):
-    """Generate global hypothesis hash from assignment."""
+def chyphash(track_ids):
+    """Generate cluster hypothesis hash from assignment."""
     return hash(tuple(sorted(track_ids)))
 
 
-class GlobalHypothesis:
-    """Class to represent a global hypothesis."""
+class ClusterHypothesis:
+    """Class to represent a cluster hypothesis."""
 
-    def __init__(self, tracker, targets, scan, parent_tracks):
+    def __init__(self, cluster, targets, parent_tracks, scan=None, score=None):
         """Init."""
-        self.tracker = tracker
+        self.cluster = cluster
         self.targets = targets
 
         if parent_tracks is None:
@@ -32,9 +32,9 @@ class GlobalHypothesis:
                            for report, track in parent_tracks
                            if track is not None]
 
-            parent_hash = ghyphash([id(track) for _, track in parent_tracks
+            parent_hash = chyphash([id(track) for _, track in parent_tracks
                                     if track is not None])
-            ph = self.tracker.global_hypotheses.get(parent_hash, None)
+            ph = self.cluster.cluster_hypotheses.get(parent_hash, None)
             self.parent_score = ph.score() if ph else 0
 
             self.n_missed = len(targets) - len(parent_tracks)
@@ -45,13 +45,16 @@ class GlobalHypothesis:
 
             self.track_score = sum(track.score() for track in self.tracks)
 
-            # FIXME
-            self.my_score = self.track_score + \
-                scan.sensor.score_false * self.n_false + \
-                scan.sensor.score_miss * self.n_missed + \
-                scan.sensor.score_new * self.n_new
+            if score:
+                self.total_score = score
+            else:
+                # FIXME
+                my_score = self.track_score + \
+                    scan.sensor.score_false * self.n_false + \
+                    scan.sensor.score_miss * self.n_missed + \
+                    scan.sensor.score_new * self.n_new
 
-            self.total_score = self.parent_score + self.my_score
+                self.total_score = self.parent_score + my_score
 
     def score(self):
         """Return the total score of the hypothesis."""
@@ -59,7 +62,7 @@ class GlobalHypothesis:
 
     def __hash__(self):
         """Return an indexable id representing the hypothesis."""
-        return ghyphash({id(track) for track in self.tracks})
+        return chyphash({id(track) for track in self.tracks})
 
     def __gt__(self, b):
         """Check which hypothesis is better."""

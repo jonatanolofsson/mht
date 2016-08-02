@@ -1,40 +1,10 @@
 """Library implementing Multiple Hypothesis assigning."""
 
-import queue
-import numpy as np
-from copy import copy
-# import matplotlib.pyplot as plt
-# from . import plot
+from itertools import chain, product
 
-from .target import Target
 from . import kf
-from . import models
-from .globalhyp import GlobalHypothesis
-from .hypgen import permgen
-from .hypgen import murty
-
-LARGE = 10000
-
-
-def _init_target_filter(report):
-    """Default target initiator."""
-    model = models.constant_velocity_2d(0.1)
-    x0 = np.matrix([report.z[0], report.z[1], 0.0, 0.0]).T
-    P0 = np.eye(4)
-    return kf.KFilter(model, x0, P0)
-
-
-class PrioItem:
-    """Item storable in PriorityQueue."""
-
-    def __init__(self, prio, data):
-        """Init."""
-        self.prio = prio
-        self.data = data
-
-    def __lt__(self, b):
-        """lt comparison."""
-        return self.prio < b.prio
+from .cluster import Cluster
+from .clusterhyp import ClusterHypothesis
 
 
 class MHT:
@@ -43,111 +13,79 @@ class MHT:
     def __init__(self, initial_targets=None, init_target_filter=None,
                  k_max=None):
         """Init."""
-        self.init_target_filter = init_target_filter or _init_target_filter
-        self.targets = initial_targets if initial_targets else []
-        if initial_targets:
-            for target in self.targets:
-                for track in target.tracks:
-                    track.is_new_target = lambda: False
-
-        gh = GlobalHypothesis(self, initial_targets, None, None)
-        self.global_hypotheses = {gh: gh}
-        self.best_hyp = gh
-        self.k_max = k_max
+        self.init_target_filter = init_target_filter or kf.kfinit(0.1)
+        self.clusters = {
+            Cluster(self, initial_targets, init_target_filter, k_max)}
+        self._split_clusters()
 
     def predict(self, dT):
         """Move to next timestep."""
-        for target in self.targets:
-            target.predict(dT)
+        for cluster in self.clusters:
+            cluster.predict(dT)
 
-    def _relevant_targets(self, scan):
-        """Filter out relevant targets."""
-        return copy(self.targets)
+    def global_hypotheses(self):
+        """Return global hypotheses."""
+        # FIXME
+        (c, ) = self.clusters
+        return c.cluster_hypotheses
+
+    def _match_clusters(self, m):
+        """Select clusters within reasonable range."""
+        return self.clusters
+
+    def _split_clusters(self):
+        """Split clusters."""
+        pass
+
+    def _cluster(self, scan):
+        """Update clusters."""
+        affected_clusters = set()
+
+        def _merge_clusters(self, clusters):
+            """Merge multiple clusters."""
+            nonlocal affected_clusters
+            c = Cluster(self,
+                        initial_hypotheses=[ClusterHypothesis(
+                            set().union(h.tracks for h in hyps),
+                            set().union(h.parent_tracks for h in hyps),
+                            set().union(h.score for h in hyps))
+                            for hyps in product(*clusters)])
+            c.assigned_reports = set.union(
+                c.assigned_reports for c in clusters)
+            affected_clusters -= clusters
+            affected_clusters |= c
+            self.clusters -= clusters
+            self.clusters |= c
+
+        for m in scan.reports:
+            cmatches = set(self._match_clusters(m))
+            affected_clusters |= cmatches
+
+            if len(cmatches) > 1:
+                cluster = self._merge_clusters(cmatches)
+            elif len(cmatches) == 0:
+                cluster = Cluster(self)
+            else:
+                (cluster,) = cmatches
+
+            cluster.assigned_reports.add(m)
+
+        for c in affected_clusters:
+            yield (c, c.assigned_reports)
+            c.assigned_reports = set()
 
     def register_scan(self, scan):
-        """Register scan."""
-        targets = self._relevant_targets(scan)
-        new_hypotheses = {}
-        self.best_hyp = None
-        k = 0
-        for hyp in self._hypothesis_factory(targets, scan):
-            gh = GlobalHypothesis(self, targets, scan, hyp)
-            new_hypotheses[gh] = gh
-            self.best_hyp = gh if self.best_hyp is None else \
-                min(self.best_hyp, gh)
-            k += 1
-            if self.k_max is not None and k >= self.k_max:
-                break
-        self.global_hypotheses = new_hypotheses
-        for target in self.targets:
-            target.finalize_assignment()
+        """Register new scan."""
+        for cluster, creports in self._cluster(scan):
+            cluster.register_scan(Scan(scan.sensor, creports))
 
-        # Delete targets with no tracks.
-        self.targets = [target for target in self.targets
-                        if len(target.tracks) > 0]
-
-    def mlhyp(self):
-        """Get most likely hypothesis."""
-        return self.best_hyp
-
-    def _hypothesis_factory(self, targets, scan):
-        """Generate global hypotheses."""
-        new_target_reports = {}
-
-        def new_target(report):
-            if report not in new_target_reports:
-                obj = new_target_reports[report] = Target(
-                    self.init_target_filter(report),
-                    score=scan.sensor.score_new,
-                    report=report)
-                self.targets.append(obj)
-            return new_target_reports[report]
-
-        def get_permgen(scan, tH):
-            target_assignment = ((
-                report,
-                targets[a] if a < N else
-                new_target(report) if a < N + M else
-                None)
-                for report, a in zip(scan.reports, tH[1]))
-
-            return permgen((target.score(report) if target else [(0, None)] for
-                            report, target in target_assignment))
-
-        M = len(scan.reports)
-        N = len(targets)
-        C = np.empty((M, N + 2*M))
-        C.fill(LARGE)
-        for t, target in enumerate(targets):
-            C[:, t] = [min(x[0] for x in target.score(r))
-                       for r in scan.reports]
-        C[range(M), range(N, N + M)] = scan.sensor.score_new
-        C[range(M), range(N + M, N + 2*M)] = scan.sensor.score_false
-        target_hypgen = murty(C)
-
-        Q = queue.PriorityQueue()
-        nxt_tH = next(target_hypgen)
-        Q.put(PrioItem(nxt_tH[0], get_permgen(scan, nxt_tH)))
-        nxt_tH = next(target_hypgen, None)
-        while not Q.empty():
-            pgen = Q.get_nowait().data
-            next_break = min([x for x in [
-                nxt_tH[0] if nxt_tH else None,
-                Q.queue[0].prio if not Q.empty() else None,
-                ] if x is not None] + [LARGE])
-            for track_assignment, next_trackcost in pgen:
-                yield list(zip(scan.reports, track_assignment))
-                if next_trackcost and next_trackcost > next_break:
-                    Q.put(PrioItem(next_trackcost, pgen))
-                    break
-
-            if nxt_tH and (Q.empty() or Q.queue[0].prio > nxt_tH[0]):
-                Q.put(PrioItem(nxt_tH[0], get_permgen(scan, nxt_tH)))
-                nxt_tH = next(target_hypgen, None)
+    def targets(self):
+        """Retrieve all targets in filter."""
+        yield from chain.from_iterable(c.targets for c in self.clusters)
 
 
 class Report:
-    """Class for containing measurement."""
+    """Class for containing reports."""
 
     def __init__(self, z, R, mfn):
         """Init."""
@@ -156,7 +94,7 @@ class Report:
         self.mfn = mfn
 
     def __repr__(self):
-        """Return string representation of measurement."""
+        """Return string representation of reports."""
         return "R({}, R)".format(self.z.T)
 
 

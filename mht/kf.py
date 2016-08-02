@@ -4,6 +4,19 @@ from math import log as ln
 from math import sqrt
 from math import pi
 from numpy.linalg import det
+import numpy as np
+
+from . import models
+
+
+def kfinit(q):
+    """Default target initiator."""
+    def inner(report):
+        model = models.constant_velocity_2d(q)
+        x0 = np.matrix([report.z[0], report.z[1], 0.0, 0.0]).T
+        P0 = np.eye(4)
+        return KFilter(model, x0, P0)
+    return inner
 
 
 def from_report(r):

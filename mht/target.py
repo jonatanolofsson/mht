@@ -3,17 +3,13 @@
 from copy import deepcopy
 
 
-TARGET_COUNTER = 0
-
-
 class Target:
     """Class to represent a single MHT target."""
 
     def __init__(self, filter, score, report=None):
         """Init."""
-        global TARGET_COUNTER
-        self.cid = TARGET_COUNTER
-        TARGET_COUNTER += 1
+        self.cid = Target._counter
+        Target._counter += 1
         self.reset()
         trck = Track(None,
                      None,
@@ -56,6 +52,7 @@ class Target:
     def __repr__(self):
         """String representation of object."""
         return "T({})".format(self.cid)
+Target._counter = 0
 
 
 class Track:

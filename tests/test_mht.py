@@ -7,6 +7,7 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import mht
+from mht.target import Target
 
 
 class TestMHT(unittest.TestCase):
@@ -15,12 +16,12 @@ class TestMHT(unittest.TestCase):
     def setUp(self):
         """Set up testcase."""
         self.tracker = mht.MHT(initial_targets=[
-            mht.Target(mht.kf.KFilter(
+            Target(mht.kf.KFilter(
                 mht.models.constant_velocity_2d(0.1),
                 np.matrix([[0.0], [0.0], [1.0], [1.0]]),
                 np.eye(4)
             ), 0),
-            mht.Target(mht.kf.KFilter(
+            Target(mht.kf.KFilter(
                 mht.models.constant_velocity_2d(0.1),
                 np.matrix([[0.0], [10.0], [1.0], [-1.0]]),
                 np.eye(4)
@@ -41,24 +42,22 @@ class TestMHT(unittest.TestCase):
                     np.eye(2),
                     mht.models.position_measurement)
             ]))
-        print(self.tracker.global_hypotheses)
 
     def test_predict(self):
         """Test prediction."""
-        self.assertEqual(len(self.tracker.targets), 2)
-        print(self.tracker.global_hypotheses)
-        self.assertAlmostEqual(list(self.tracker.global_hypotheses.values())[0].tracks[0].filter.x[0], 0)  # noqa
-        self.assertAlmostEqual(list(self.tracker.global_hypotheses.values())[0].tracks[0].filter.x[1], 0)  # noqa
-        self.assertAlmostEqual(list(self.tracker.global_hypotheses.values())[0].tracks[1].filter.x[0], 0)  # noqa
-        self.assertAlmostEqual(list(self.tracker.global_hypotheses.values())[0].tracks[1].filter.x[1], 10)  # noqa
+        self.assertEqual(len(list(self.tracker.targets())), 2)
+        self.assertAlmostEqual(list(self.tracker.global_hypotheses().values())[0].tracks[0].filter.x[0], 0)  # noqa
+        self.assertAlmostEqual(list(self.tracker.global_hypotheses().values())[0].tracks[0].filter.x[1], 0)  # noqa
+        self.assertAlmostEqual(list(self.tracker.global_hypotheses().values())[0].tracks[1].filter.x[0], 0)  # noqa
+        self.assertAlmostEqual(list(self.tracker.global_hypotheses().values())[0].tracks[1].filter.x[1], 10)  # noqa
 
         self.tracker.predict(1)
 
-        self.assertEqual(len(self.tracker.targets), 2)
-        self.assertAlmostEqual(list(self.tracker.global_hypotheses.values())[0].tracks[0].filter.x[0], 1)  # noqa
-        self.assertAlmostEqual(list(self.tracker.global_hypotheses.values())[0].tracks[0].filter.x[1], 1)  # noqa
-        self.assertAlmostEqual(list(self.tracker.global_hypotheses.values())[0].tracks[1].filter.x[0], 1)  # noqa
-        self.assertAlmostEqual(list(self.tracker.global_hypotheses.values())[0].tracks[1].filter.x[1], 9)  # noqa
+        self.assertEqual(len(list(self.tracker.targets())), 2)
+        self.assertAlmostEqual(list(self.tracker.global_hypotheses().values())[0].tracks[0].filter.x[0], 1)  # noqa
+        self.assertAlmostEqual(list(self.tracker.global_hypotheses().values())[0].tracks[0].filter.x[1], 1)  # noqa
+        self.assertAlmostEqual(list(self.tracker.global_hypotheses().values())[0].tracks[1].filter.x[0], 1)  # noqa
+        self.assertAlmostEqual(list(self.tracker.global_hypotheses().values())[0].tracks[1].filter.x[1], 9)  # noqa
 
     def test_track(self):
         """Test repeated updates from moving targets."""
