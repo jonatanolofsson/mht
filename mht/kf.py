@@ -54,11 +54,10 @@ class KFilter:
         score = dz.T * S.I * dz / 2.0 + ln(2 * pi * sqrt(det(S)))
         return float(score)
 
-    def score(self, m):
-        """Get the score of assigning a measurement to the filter."""
+    def nll(self, m):
+        """Get the nll score of assigning a measurement to the filter."""
         zhat, H = m.mfn(self.x)
         dz = m.z - zhat
         S = H * self.P * H.T + m.R
-        # FIXME: lambda_ex / PD according to Bar-Shalom 2007
         score = dz.T * S.I * dz / 2.0 + ln(2 * pi * sqrt(det(S)))
         return float(score)

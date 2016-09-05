@@ -1,68 +1,78 @@
 """Implementation of the cluster-global hypothesis class."""
 
 
-def chyphash(track_ids):
-    """Generate cluster hypothesis hash from assignment."""
-    return hash(tuple(sorted(track_ids)))
-
-
 class ClusterHypothesis:
     """Class to represent a cluster hypothesis."""
 
-    def __init__(self, cluster, targets, parent_tracks, scan=None, score=None):
+    def __init__(self, cluster):
         """Init."""
         self.cluster = cluster
-        self.targets = targets
+        self.total_score = 0
+        self.tracks = []
 
-        if parent_tracks is None:
-            self.unassigned = []
-            self.tracks = [target.tracks[0] for target in targets]
-            self.parent_score = 0
-            self.my_score = 0
-            self.total_score = 0
+    @staticmethod
+    def initial(cluster, tracks):
+        """Create initial hypothesis."""
+        self = ClusterHypothesis(cluster)
+        self.tracks = tracks
+        self.targets = {tr.target for tr in self.tracks}
+        self.calculate_score()
+        return self
 
-            self.n_missed = 0
-            self.n_new = len(targets)
-            self.n_false = 0
+    @staticmethod
+    def new(cluster, phyp, assignments, sensor):
+        """Create new hypothesis."""
+        self = ClusterHypothesis(cluster)
+        self.tracks = [track.assign(report, sensor)
+                       for report, track in assignments]
 
-        else:
-            self.unassigned = [
-                report for report, track in parent_tracks if track is None]
-            self.tracks = [track.assign(report)
-                           for report, track in parent_tracks
-                           if track is not None]
+        missed = set(phyp.tracks) - {tr for _, tr in assignments}
+        self.tracks += [tr.missed(sensor)
+                        for tr in missed
+                        if tr.exist_score > 1]
 
-            parent_hash = chyphash([id(track) for _, track in parent_tracks
-                                    if track is not None])
-            ph = self.cluster.cluster_hypotheses.get(parent_hash, None)
-            self.parent_score = ph.score() if ph else 0
+        self.targets = {tr.target for tr in self.tracks}
 
-            self.n_missed = len(targets) - len(parent_tracks)
-            self.n_new = sum(1 if track.is_new_target() else 0
-                             for _, track in parent_tracks
-                             if track is not None)
-            self.n_false = len(self.unassigned)
+        self.calculate_score()
 
-            self.track_score = sum(track.score() for track in self.tracks)
+        return self
 
-            if score:
-                self.total_score = score
-            else:
-                # FIXME
-                my_score = self.track_score + \
-                    scan.sensor.score_false * self.n_false + \
-                    scan.sensor.score_miss * self.n_missed + \
-                    scan.sensor.score_new * self.n_new
+    @staticmethod
+    def merge(cluster, hyps):
+        """Merge n hyps."""
+        self = ClusterHypothesis(cluster)
+        self.tracks = [x for c in hyps for x in c.tracks]
+        self.targets = {tr.target for tr in self.tracks}
+        self.calculate_score()
+        return self
 
-                self.total_score = self.parent_score + my_score
+    def split(self, split_targets):
+        """Return a subhypothesis to cover the provided targets."""
+        tracks = [tr for tr in self.tracks if tr.target in split_targets]
+        if len(tracks) == 0:
+            return None
+        h = ClusterHypothesis(self.cluster)
+        h.tracks = tracks
+        h.targets = {tr.target for tr in h.tracks}
+        h.calculate_score()
+        return h
+
+    def calculate_score(self):
+        """Calculate score."""
+        # FIXME: Cache
+        self.total_score = sum(tr.score() for tr in self.tracks)
 
     def score(self):
         """Return the total score of the hypothesis."""
         return self.total_score
 
+    def __eq__(self, b):
+        """Check if self == b."""
+        return self.tracks == b.tracks
+
     def __hash__(self):
-        """Return an indexable id representing the hypothesis."""
-        return chyphash({id(track) for track in self.tracks})
+        """Return hash."""
+        return hash(tuple(self.tracks))
 
     def __gt__(self, b):
         """Check which hypothesis is better."""

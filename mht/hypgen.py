@@ -7,9 +7,10 @@ from lapjv import lap
 LARGE = 10000
 
 
-def permgen(lists):
-    """Generate ordered permutations of lists."""
-    lists = [sorted(ol) for ol in lists]
+def permgen(lists, presorted=False):
+    """Generate ordered permutations of lists of (cost, data) tuples."""
+    if not presorted:
+        lists = [sorted(l) for l in lists]
     bounds = [len(l) - 1 for l in lists]
     N = len(lists)
     Q = queue.PriorityQueue()

@@ -1,22 +1,22 @@
-"""Library implementing Multiple Hypothesis assigning."""
+"""Library implementing Multiple Hypothesis Tracking."""
 
-from itertools import chain, product
+from itertools import chain
 
 from . import kf
 from .cluster import Cluster
-from .clusterhyp import ClusterHypothesis
+from .hypgen import permgen
 
 
 class MHT:
     """MHT class."""
 
-    def __init__(self, initial_targets=None, init_target_filter=None,
+    def __init__(self, initial_targets=None, init_target_tracker=None,
                  k_max=None):
         """Init."""
-        self.init_target_filter = init_target_filter or kf.kfinit(0.1)
-        self.clusters = {
-            Cluster(self, initial_targets, init_target_filter, k_max)}
-        self._split_clusters()
+        initial_targets = initial_targets or []
+        self.init_target_tracker = init_target_tracker or kf.kfinit(0.1)
+        self.clusters = {Cluster.initial(self, [f]) for f in initial_targets}
+        self.k_max = k_max
 
     def predict(self, dT):
         """Move to next timestep."""
@@ -25,9 +25,9 @@ class MHT:
 
     def global_hypotheses(self):
         """Return global hypotheses."""
-        # FIXME
-        (c, ) = self.clusters
-        return c.cluster_hypotheses
+        yield from (GlobalHypothesis(self, hyps) for hyps in
+                    permgen(((h.score(), h) for h in c.hypotheses)
+                            for c in self.clusters))
 
     def _match_clusters(self, m):
         """Select clusters within reasonable range."""
@@ -35,40 +35,37 @@ class MHT:
 
     def _split_clusters(self):
         """Split clusters."""
-        pass
+        new_clusters = set()
+        for c in self.clusters:
+            new_clusters |= c.split()
+        self.clusters = new_clusters
 
     def _cluster(self, scan):
         """Update clusters."""
         affected_clusters = set()
 
-        def _merge_clusters(self, clusters):
+        def _merge_clusters(clusters):
             """Merge multiple clusters."""
             nonlocal affected_clusters
-            c = Cluster(self,
-                        initial_hypotheses=[ClusterHypothesis(
-                            set().union(h.tracks for h in hyps),
-                            set().union(h.parent_tracks for h in hyps),
-                            set().union(h.score for h in hyps))
-                            for hyps in product(*clusters)])
-            c.assigned_reports = set.union(
-                c.assigned_reports for c in clusters)
+            c = Cluster.merge(self, clusters)
             affected_clusters -= clusters
-            affected_clusters |= c
+            affected_clusters.add(c)
             self.clusters -= clusters
-            self.clusters |= c
+            self.clusters.add(c)
+            return c
 
-        for m in scan.reports:
-            cmatches = set(self._match_clusters(m))
+        for r in scan.reports:
+            cmatches = set(self._match_clusters(r))
             affected_clusters |= cmatches
 
             if len(cmatches) > 1:
-                cluster = self._merge_clusters(cmatches)
+                cluster = _merge_clusters(cmatches)
             elif len(cmatches) == 0:
-                cluster = Cluster(self)
+                cluster = Cluster.empty(self)
             else:
                 (cluster,) = cmatches
 
-            cluster.assigned_reports.add(m)
+            cluster.assigned_reports.add(r)
 
         for c in affected_clusters:
             yield (c, c.assigned_reports)
@@ -78,10 +75,38 @@ class MHT:
         """Register new scan."""
         for cluster, creports in self._cluster(scan):
             cluster.register_scan(Scan(scan.sensor, creports))
+        self._split_clusters()
 
     def targets(self):
-        """Retrieve all targets in filter."""
+        """Retrieve all targets in tracker."""
         yield from chain.from_iterable(c.targets for c in self.clusters)
+
+
+class GlobalHypothesis:
+    """Class to represent a global hypothesis."""
+
+    def __init__(self, tracker, hypotheses):
+        """Init."""
+        self.tracker = tracker
+        self.cluster_hypotheses = hypotheses[0]
+        self.tracks = [tr for h in self.cluster_hypotheses for tr in h.tracks]
+        self.total_score = sum(tr.score() for tr in self.tracks)
+
+    def score(self):
+        """Return the total score of the hypothesis."""
+        return self.total_score
+
+    def __gt__(self, b):
+        """Check which hypothesis is better."""
+        return self.score() > b.score()
+
+    def __repr__(self):
+        """Generate string representing the hypothesis."""
+        return """::::: Global Hypothesis, score {} :::::
+Tracks:
+\t{}
+    """.format(self.score(),
+               "\n\t".join(str(track) for track in self.tracks))
 
 
 class Report:
@@ -92,6 +117,7 @@ class Report:
         self.z = z
         self.R = R
         self.mfn = mfn
+        self.assigned_tracks = set()
 
     def __repr__(self):
         """Return string representation of reports."""
@@ -105,3 +131,7 @@ class Scan:
         """Init."""
         self.sensor = sensor
         self.reports = reports
+
+    def __repr__(self):
+        """Return a string representation of the scan."""
+        return "Scan: {}".format(str(self.reports))

@@ -26,8 +26,8 @@ def plot_trace(trace, c=0, covellipse=True, **kwargs):
 
 def plot_hyptrace(gh, cseed=0, covellipse=True, **kwargs):
     """Plot hypothesis trace."""
-    for c, track in enumerate(gh.tracks):
-        plot_trace(track.trace(), c + cseed, covellipse, **kwargs)
+    for tr in gh.tracks:
+        plot_trace(tr.trace(), tr.target._id + cseed, covellipse, **kwargs)
 
 
 def plot_cov_ellipse(cov, pos, nstd=2, **kwargs):
@@ -48,19 +48,15 @@ def plot_cov_ellipse(cov, pos, nstd=2, **kwargs):
     return ellip
 
 
-def plot_hypothesis(gh, cseed=0, covellipse=True, unassigned=True):
+def plot_hypothesis(gh, cseed=0, covellipse=True):
     """Plot targets."""
-    for c, track in enumerate(gh.tracks):
-        pos = (track.filter.x[0], track.filter.x[1])
-        plt.scatter(*pos, c=c+cseed, cmap=CMAP, edgecolors='k')
+    for tr in gh.tracks:
+        pos = (tr.filter.x[0], tr.filter.x[1])
+        plt.scatter(*pos, c=tr.target._id+cseed, cmap=CMAP, edgecolors='k')
         if covellipse:
-            ca = plot_cov_ellipse(track.filter.P[0:2, 0:2], pos)
+            ca = plot_cov_ellipse(tr.filter.P[0:2, 0:2], pos)
             ca.set_alpha(0.5)
-            ca.set_facecolor(CMAP(c + cseed))
-    if unassigned:
-        plt.plot([float(u.z[0]) for u in gh.unassigned],
-                 [float(u.z[1]) for u in gh.unassigned],
-                 marker='*', color='r', linestyle='None')
+            ca.set_facecolor(CMAP(tr.target._id + cseed))
 
 
 def plot_scan(scan):
