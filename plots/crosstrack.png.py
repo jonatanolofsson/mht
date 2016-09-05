@@ -4,6 +4,7 @@ import sys
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
+import cProfile
 
 sys.path.append(
     os.path.dirname(os.path.dirname(
@@ -16,7 +17,7 @@ np.random.seed(1)
 
 def draw():
     """Create plot."""
-    mht.plot.plt.subplot(2, 1, 1)
+    mht.plot.plt.subplot(4, 1, 1)
     tracker = mht.MHT(initial_targets=[
         mht.kf.KFilter(
             mht.models.constant_velocity_2d(0.1),
@@ -28,14 +29,22 @@ def draw():
             np.matrix([[0.0], [10.0], [1.0], [-1.0]]),
             np.eye(4)
         )
-    ], k_max=2)
+    ], k_max=500, nll_limit=3, hp_limit=7)
     targets = [
         np.array([[0.0], [0.0], [1.0], [1.0]]),
         np.array([[0.0], [10.0], [1.0], [-1.0]]),
     ]
     hyps = None
     nclusters = []
-    for k in range(50):
+    ntargets_true = []
+    ntargets = []
+    nhyps = []
+    for k in range(150):
+        print()
+        print()
+        print()
+        print()
+        print("k:", k)
         if k > 0:
             tracker.predict(1)
             for t in targets:
@@ -47,6 +56,8 @@ def draw():
                            + np.random.normal(size=(4, 1)) * 0.3)
         if k % 7 == 1:
             del targets[-1]
+        if k == 10:
+            targets.append(np.array([[10.0], [-30.0], [1.0], [-0.5]]))
         if k == 20:
             targets.append(np.array([[k], [0.0], [1.0], [4.0]]))
 
@@ -58,8 +69,12 @@ def draw():
                 mht.models.position_measurement)
              for t in targets])
         tracker.register_scan(this_scan)
-        nclusters.append(len(tracker.clusters))
         hyps = list(tracker.global_hypotheses())
+        print("hp:", hyps[0].score(), hyps[-1].score())
+        nclusters.append(len(tracker.clusters))
+        ntargets.append(len(hyps[0].targets))
+        ntargets_true.append(len(targets))
+        nhyps.append(len(hyps))
         mht.plot.plot_hypothesis(hyps[0], cseed=2)
         mht.plot.plot_scan(this_scan)
         plt.plot([t[0] for t in targets],
@@ -68,9 +83,17 @@ def draw():
     print(hyps)
     mht.plot.plot_hyptrace(hyps[0], covellipse=False)
     mht.plot.plt.axis([-1, k + 1, -k - 1, k + 1 + 10])
-    mht.plot.plt.subplot(2, 1, 2)
+    mht.plot.plt.subplot(4, 1, 2)
     mht.plot.plt.plot(nclusters)
     mht.plot.plt.axis([-1, k + 1, min(nclusters) - 0.1, max(nclusters) + 0.1])
+    mht.plot.plt.subplot(4, 1, 3)
+    mht.plot.plt.plot(ntargets)
+    mht.plot.plt.plot(ntargets_true)
+    mht.plot.plt.axis([-1, k + 1, min(ntargets + ntargets_true) - 0.1,
+                       max(ntargets + ntargets_true) + 0.1])
+    mht.plot.plt.subplot(4, 1, 4)
+    mht.plot.plt.plot(nhyps)
+    mht.plot.plt.axis([-1, k + 1, min(nhyps) - 0.1, max(nhyps) + 0.1])
 
 
 def parse_args(*argv):
@@ -83,6 +106,7 @@ def parse_args(*argv):
 def main(*argv):
     """Main."""
     args = parse_args(*argv)
+    # cProfile.run('draw()', sort='tottime')
     draw()
     if args.show:
         plt.show()

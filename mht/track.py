@@ -2,6 +2,8 @@
 
 from copy import deepcopy
 
+from .utils import LARGE
+
 NEW_EXIST_SCORE = 1
 MAX_EXIST_SCORE = 4
 
@@ -54,8 +56,11 @@ class Track:
         """Missed detection track."""
         if None not in self.children:
             new = Track(self.target, self, deepcopy(self.filter), None)
-            new.my_score = sensor.score_miss
-            new.exist_score = max(self.exist_score - 1, 0)
+            new.my_score = self.miss_score(sensor)
+            if self.my_score == 0:
+                new.exist_score = self.exist_score
+            else:
+                new.exist_score = max(self.exist_score - 1, 0)
             self.children[None] = new
         return self.children[None]
 
@@ -77,9 +82,20 @@ class Track:
         """Return track score."""
         return self.parent_score + self.my_score
 
-    def match(self, r):
-        """Find the score of assigning a report to the filter."""
-        return self.filter.nll(r)
+    def match_score(self, r, sensor):
+        """Find the score of assigning a report to the track."""
+        if sensor.in_fov(self.filter.x):
+            nll = self.filter.nll(r)
+            if nll < self.target.tracker.nll_limit:
+                return self.filter.nll(r) - sensor.score_found
+            return LARGE
+        return LARGE
+
+    def miss_score(self, sensor):
+        """Find the score of not assigning any report to the track."""
+        if sensor.in_fov(self.filter.x):
+            return sensor.score_miss
+        return 0
 
     def trace(self):
         """Backtrace lineage until end or any of the previously searched."""

@@ -1,5 +1,7 @@
 """Util methods."""
 
+LARGE = 10000
+
 
 class PrioItem:
     """Item storable in PriorityQueue."""

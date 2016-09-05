@@ -5,18 +5,21 @@ from itertools import chain
 from . import kf
 from .cluster import Cluster
 from .hypgen import permgen
+from .utils import LARGE
 
 
 class MHT:
     """MHT class."""
 
     def __init__(self, initial_targets=None, init_target_tracker=None,
-                 k_max=None):
+                 k_max=None, nll_limit=LARGE, hp_limit=LARGE):
         """Init."""
         initial_targets = initial_targets or []
         self.init_target_tracker = init_target_tracker or kf.kfinit(0.1)
         self.clusters = {Cluster.initial(self, [f]) for f in initial_targets}
         self.k_max = k_max
+        self.nll_limit = nll_limit
+        self.hp_limit = hp_limit
 
     def predict(self, dT):
         """Move to next timestep."""
@@ -90,6 +93,7 @@ class GlobalHypothesis:
         self.tracker = tracker
         self.cluster_hypotheses = hypotheses[0]
         self.tracks = [tr for h in self.cluster_hypotheses for tr in h.tracks]
+        self.targets = {tr.target for tr in self.tracks}
         self.total_score = sum(tr.score() for tr in self.tracks)
 
     def score(self):

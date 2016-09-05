@@ -4,7 +4,7 @@ import queue
 from copy import copy
 from lapjv import lap
 
-LARGE = 10000
+from .utils import LARGE
 
 
 def permgen(lists, presorted=False):

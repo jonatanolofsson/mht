@@ -10,9 +10,7 @@ from collections import defaultdict
 from .target import Target
 from .clusterhyp import ClusterHypothesis
 from .hypgen import murty, permgen
-from .utils import PrioItem, connected_components
-
-LARGE = 10000
+from .utils import PrioItem, connected_components, LARGE
 
 
 class Cluster:
@@ -31,7 +29,7 @@ class Cluster:
         """Create initial cluster."""
         self = Cluster(tracker)
         for f in initial_target_filters:
-            self.targets.append(Target.initial(f))
+            self.targets.append(Target.initial(tracker, f))
         self.hypotheses = [ClusterHypothesis.initial(
             self, [t.tracks[None] for t in self.targets])]
         return self
@@ -113,20 +111,33 @@ class Cluster:
     def normalise(self):
         """Normalise hypothesis scores."""
         if len(self.hypotheses):
-            c = log(sum(exp(-h.score()) for h in self.hypotheses))
+            scores = [h.score() for h in self.hypotheses]
+            min_score = min(scores)
+            c = log(sum(exp(min_score - s) for s in scores)) - min_score
             for h in self.hypotheses:
                 h.total_score += c
 
     def register_scan(self, scan):
         """Register scan."""
+        def hlimit(g):
+            """Limit hypothesis draws."""
+            min_score = LARGE
+            scores = []
+            for ph, c, h in islice(g, None, self.tracker.k_max):
+                scores.append(c)
+                min_score = min(min_score, c)
+                s = log(sum(exp(min_score - s) for s in scores)) - min_score
+                if c + s > self.tracker.hp_limit:
+                    return
+                yield ph, h
+
         new_ts = {}
 
         # Generate new hyptheses
         self.hypotheses = list(sorted(list({
             ch for ch in
             (ClusterHypothesis.new(self, ph, hyp, scan.sensor)
-             for ph, hyp in islice(self._assignment_hypotheses(scan, new_ts),
-                                   None, self.tracker.k_max))
+             for ph, hyp in hlimit(self._assignment_hypotheses(scan, new_ts)))
             if len(ch.tracks) > 0})))
         self.normalise()
 
@@ -158,6 +169,7 @@ class Cluster:
             nonlocal new_targets
             if report not in new_targets:
                 new_targets[report] = Target.new(
+                    self.tracker,
                     self.tracker.init_target_tracker(report),
                     report, scan.sensor)
             return new_targets[report].tracks[report]
@@ -193,10 +205,10 @@ class Cluster:
             C = np.empty((N + M, N + M))
             C.fill(LARGE)
             for i, tr in enumerate(ph.tracks):
-                C[range(M), i] = [tr.match(r) - scan.sensor.score_found
+                C[range(M), i] = [tr.match_score(r, scan.sensor)
                                   for r in scan.reports]
+                C[M + i, i] = tr.miss_score(scan.sensor)
             C[range(M), range(N, N + M)] = scan.sensor.score_extraneous
-            C[range(M, N + M), range(N)] = scan.sensor.score_miss
             C[M:N + M, N:N + M] = 0
 
             # Murty solution S: (cost, assignments)
@@ -231,7 +243,7 @@ class Cluster:
             next_break = Q.queue[0].prio if not Q.empty() else LARGE
             while a and a[0] <= next_break:
                 r = list(a[1])
-                yield ph, r
+                yield ph, a[0], r
                 a = next(m, None)
             if a:
                 Q.put(PrioItem(a[0], (a, ph, m)))
