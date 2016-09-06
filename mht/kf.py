@@ -14,7 +14,7 @@ def kfinit(q):
     def inner(report):
         model = models.constant_velocity_2d(q)
         x0 = np.matrix([report.z[0], report.z[1], 0.0, 0.0]).T
-        P0 = np.eye(4)
+        P0 = np.eye(4) * 2
         return KFilter(model, x0, P0)
     return inner
 

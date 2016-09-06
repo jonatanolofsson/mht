@@ -12,14 +12,17 @@ class MHT:
     """MHT class."""
 
     def __init__(self, initial_targets=None, init_target_tracker=None,
-                 k_max=None, nll_limit=LARGE, hp_limit=LARGE):
+                 k_max=None, nll_limit=LARGE, hp_limit=LARGE,
+                 matching_algorithm=None):
         """Init."""
         initial_targets = initial_targets or []
         self.init_target_tracker = init_target_tracker or kf.kfinit(0.1)
+        self.new_clusters = set()
         self.clusters = {Cluster.initial(self, [f]) for f in initial_targets}
         self.k_max = k_max
         self.nll_limit = nll_limit
         self.hp_limit = hp_limit
+        self.matching_algorithm = matching_algorithm
 
     def predict(self, dT):
         """Move to next timestep."""
@@ -32,9 +35,19 @@ class MHT:
                     permgen(((h.score(), h) for h in c.hypotheses)
                             for c in self.clusters))
 
-    def _match_clusters(self, m):
+    def _match_clusters(self, r, sensor):
         """Select clusters within reasonable range."""
-        return self.clusters
+        if self.matching_algorithm is None:
+            matching = self.clusters
+        elif self.matching_algorithm == "naive":
+            matching = {c for c in self.clusters
+                        if any(sensor.in_fov(tr.filter.x)
+                               for t in c.targets
+                               for tr in t.tracks.values())}
+        if len(matching) == 0:
+            matching = {Cluster.empty(self)}
+            self.new_clusters |= matching
+        return matching
 
     def _split_clusters(self):
         """Split clusters."""
@@ -58,7 +71,7 @@ class MHT:
             return c
 
         for r in scan.reports:
-            cmatches = set(self._match_clusters(r))
+            cmatches = set(self._match_clusters(r, scan.sensor))
             affected_clusters |= cmatches
 
             if len(cmatches) > 1:
@@ -69,6 +82,9 @@ class MHT:
                 (cluster,) = cmatches
 
             cluster.assigned_reports.add(r)
+
+        self.clusters |= self.new_clusters
+        self.new_clusters = set()
 
         for c in affected_clusters:
             yield (c, c.assigned_reports)
