@@ -6,25 +6,26 @@ from .track import Track
 class Target:
     """Class to represent a single MHT target."""
 
-    def __init__(self, tracker):
+    def __init__(self, cluster):
         """Init."""
         self._id = self.__class__._counter
         self.__class__._counter += 1
-        self.tracker = tracker
+        self.cluster = cluster
+        self.tracks = {}
         self.reset()
 
     @staticmethod
-    def initial(tracker, filter):
+    def initial(cluster, filter):
         """Create initial target."""
-        self = Target(tracker)
+        self = Target(cluster)
         self.tracks = {None: Track.initial(self, filter)}
         self.reset()
         return self
 
     @staticmethod
-    def new(tracker, filter, report, sensor):
+    def new(cluster, filter, report, sensor):
         """Create new target."""
-        self = Target(tracker)
+        self = Target(cluster)
         tr = Track.new(self, filter, sensor, report)
         self.tracks = {report: tr}
         self.new_tracks[report] = tr

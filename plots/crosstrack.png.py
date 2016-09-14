@@ -17,22 +17,22 @@ np.random.seed(1)
 
 def draw():
     """Create plot."""
-    mht.plot.plt.subplot(4, 1, 1)
     tracker = mht.MHT(
         initial_targets=[
             mht.kf.KFilter(
-                mht.models.constant_velocity_2d(0.1),
+                mht.models.ConstantVelocityModel(0.1),
                 np.matrix([[0.0], [0.0], [1.0], [1.0]]),
                 np.eye(4)
             ),
             mht.kf.KFilter(
-                mht.models.constant_velocity_2d(0.1),
+                mht.models.ConstantVelocityModel(0.1),
                 np.matrix([[0.0], [10.0], [1.0], [-1.0]]),
                 np.eye(4)
             )
         ],
-        k_max=50, nll_limit=4, hp_limit=7,
-        matching_algorithm=None)
+        cparams=mht.ClusterParameters(k_max=50, nll_limit=4, hp_limit=7)
+        # , matching_algorithm="rtree"
+        )
     targets = [
         np.array([[0.0], [0.0], [1.0], [1.0]]),
         np.array([[0.0], [10.0], [1.0], [-1.0]]),
@@ -42,7 +42,7 @@ def draw():
     ntargets_true = []
     ntargets = []
     nhyps = []
-    for k in range(40):
+    for k in range(25):
         # print()
         # print()
         # print()
@@ -74,31 +74,32 @@ def draw():
         tracker.register_scan(this_scan)
         hyps = list(tracker.global_hypotheses())
         # print("hp:", hyps[0].score(), hyps[-1].score())
-        nclusters.append(len(tracker.clusters))
+        nclusters.append(len(tracker.active_clusters))
         ntargets.append(len(hyps[0].targets))
         ntargets_true.append(len(targets))
         nhyps.append(len(hyps))
-        mht.plot.plot_hypothesis(hyps[0], cseed=2)
+        # mht.plot.plot_hypothesis(hyps[0], cseed=2)
         mht.plot.plot_scan(this_scan)
         plt.plot([t[0] for t in targets],
                  [t[1] for t in targets],
-                 marker='D', color='y', linestyle='None')
+                 marker='D', color='y', alpha=.5, linestyle='None')
     print(hyps[0])
     mht.plot.plot_hyptrace(hyps[0], covellipse=False)
     mht.plot.plt.axis([-1, k + 1, -k - 1, k + 1 + 10])
     mht.plot.plt.ylabel('Tracks')
-    mht.plot.plt.subplot(4, 1, 2)
+    mht.plot.plt.figure()
+    mht.plot.plt.subplot(3, 1, 1)
     mht.plot.plt.plot(nclusters)
     mht.plot.plt.axis([-1, k + 1, min(nclusters) - 0.1, max(nclusters) + 0.1])
     mht.plot.plt.ylabel('# Clusters')
-    mht.plot.plt.subplot(4, 1, 3)
+    mht.plot.plt.subplot(3, 1, 2)
     mht.plot.plt.plot(ntargets, label='Estimate')
     mht.plot.plt.plot(ntargets_true, label='True')
     mht.plot.plt.ylabel('# Targets')
     mht.plot.plt.legend()
     mht.plot.plt.axis([-1, k + 1, min(ntargets + ntargets_true) - 0.1,
                        max(ntargets + ntargets_true) + 0.1])
-    mht.plot.plt.subplot(4, 1, 4)
+    mht.plot.plt.subplot(3, 1, 3)
     mht.plot.plt.plot(nhyps)
     mht.plot.plt.axis([-1, k + 1, min(nhyps) - 0.1, max(nhyps) + 0.1])
     mht.plot.plt.ylabel('# Hyps')

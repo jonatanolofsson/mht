@@ -15,6 +15,10 @@ class EyeOfMordor:
         self.score_found = -log(1 - exp(-score_miss)) \
             if score_miss > 0 else LARGE
 
+    def bbox(self):
+        """Return FOV bbox."""
+        return (-LARGE, LARGE, -LARGE, LARGE)
+
     def in_fov(self, state):
         """Return nll prob of detection, given fov."""
         return True

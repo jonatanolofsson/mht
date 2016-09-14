@@ -16,7 +16,6 @@ class TestClusterHypothesis(unittest.TestCase):
         """Set up."""
         self.tracker = MagicMock()
         self.tracker.k_max = 10
-        self.cluster = MagicMock()
         self.reports = [MagicMock(), MagicMock(), MagicMock()]
         self.tracks = [MagicMock(), MagicMock(), MagicMock()]
         self.new_tracks = [MagicMock(), MagicMock(), MagicMock()]
@@ -40,11 +39,10 @@ class TestClusterHypothesis(unittest.TestCase):
         self.sensor.score_extraneous = 3
         self.sensor.score_miss = 3
         self.sensor.score_found = 0.05
-        self.cluster.targets = self.targets
 
     def test_initial(self):
         """Test initial."""
-        chyp = ClusterHypothesis.initial(self.cluster, self.tracks)
+        chyp = ClusterHypothesis.initial(self.tracks)
 
         self.assertSetEqual(set(chyp.targets), set(self.targets))
         self.assertEqual(len(chyp.targets), len(self.targets))
@@ -55,8 +53,7 @@ class TestClusterHypothesis(unittest.TestCase):
         """Test the creation of new hypotheses."""
         assignments = list(zip(self.reports, self.tracks))
         ph = MagicMock()
-        chyp = ClusterHypothesis.new(
-            self.cluster, ph, assignments, self.sensor)
+        chyp = ClusterHypothesis.new(ph, assignments, self.sensor)
 
         self.assertEqual(len(chyp.tracks), len(assignments))
         self.assertEqual(len(chyp.targets), len(assignments))
@@ -64,7 +61,7 @@ class TestClusterHypothesis(unittest.TestCase):
 
     def test_split(self):
         """Test hypothesis splitting."""
-        chyp = ClusterHypothesis.initial(self.cluster, self.tracks)
+        chyp = ClusterHypothesis.initial(self.tracks)
 
         split_hyp = chyp.split({self.targets[0]})
 
@@ -75,9 +72,9 @@ class TestClusterHypothesis(unittest.TestCase):
 
     def test_merge(self):
         """Test hypothesis merging."""
-        chyps = [ClusterHypothesis.initial(None, [tr]) for tr in self.tracks]
+        chyps = [ClusterHypothesis.initial([tr]) for tr in self.tracks]
 
-        merged_hyp = ClusterHypothesis.merge(self.cluster, chyps)
+        merged_hyp = ClusterHypothesis.merge(chyps)
 
         self.assertSetEqual(set(merged_hyp.tracks), set(self.tracks))
         self.assertEqual(len(merged_hyp.tracks), len(self.tracks))

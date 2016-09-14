@@ -11,7 +11,7 @@ class TestKFTarget(unittest.TestCase):
 
     def setUp(self):
         """Set up."""
-        model = mht.models.constant_velocity_2d(0.1)
+        model = mht.models.ConstantVelocityModel(0.1)
         self.x0 = np.matrix([[0.0]] * 4)
         self.P0 = np.eye(4)
         self.target = mht.kf.KFilter(model, self.x0, self.P0)

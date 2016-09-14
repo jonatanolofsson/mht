@@ -3,45 +3,39 @@
 import matplotlib.colors
 from numpy.random import RandomState
 import matplotlib.pyplot as plt
-import numpy as np
 from matplotlib.patches import Ellipse
+
+from .utils import cov_ellipse
 
 CMAP = matplotlib.colors.ListedColormap(RandomState(0).rand(256, 3))
 
 
 def plot_trace(trace, c=0, covellipse=True, **kwargs):
     """Plot single trace."""
-    x = []
-    y = []
-    for track in trace:
-        pos = (float(track.filter.x[0]), float(track.filter.x[1]))
-        x.append(pos[0])
-        y.append(pos[1])
+    xs = []
+    ys = []
+    for x, P in trace:
+        pos = (float(x[0]), float(x[1]))
+        xs.append(pos[0])
+        ys.append(pos[1])
         if covellipse:
-            ca = plot_cov_ellipse(track.filter.P[0:2, 0:2], pos)
+            ca = plot_cov_ellipse(P[0:2, 0:2], pos)
             ca.set_alpha(0.3)
             ca.set_facecolor(CMAP(c))
-    plt.plot(x, y, marker='*', color=CMAP(c))
+    print("Trace:", len(xs))
+    plt.plot(xs, ys, marker='*', color=CMAP(c))
 
 
 def plot_hyptrace(gh, cseed=0, covellipse=True, **kwargs):
     """Plot hypothesis trace."""
     for tr in gh.tracks:
-        plot_trace(tr.trace(), tr.target._id + cseed, covellipse, **kwargs)
+        plot_trace(tr.filter.trace, tr.target._id + cseed, covellipse,
+                   **kwargs)
 
 
 def plot_cov_ellipse(cov, pos, nstd=2, **kwargs):
     """Plot confidence ellipse."""
-    def eigsorted(cov):
-        vals, vecs = np.linalg.eigh(cov)
-        order = vals.argsort()[::-1]
-        return vals[order], vecs[:, order]
-
-    vals, vecs = eigsorted(cov)
-    theta = np.degrees(np.arctan2(*vecs[:, 0][::-1]))
-
-    # Width and height are "full" widths, not radius
-    width, height = 2 * nstd * np.sqrt(vals)
+    width, height, theta = cov_ellipse(cov, nstd)
     ellip = Ellipse(xy=pos, width=width, height=height, angle=theta, **kwargs)
 
     plt.gca().add_artist(ellip)

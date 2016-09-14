@@ -15,7 +15,7 @@ class Track:
         """Init."""
         self.target = target
         self.target.new_tracks[report] = self
-        self.parent = parent
+        self.parent_id = parent._id if parent else None
         self.filter = filter
         self.report = report
         self.my_score = 0
@@ -86,7 +86,7 @@ class Track:
         """Find the score of assigning a report to the track."""
         if sensor.in_fov(self.filter.x):
             nll = self.filter.nll(r)
-            if nll < self.target.tracker.nll_limit:
+            if nll < self.target.cluster.params.nll_limit:
                 return self.filter.nll(r) - sensor.score_found
             return LARGE
         return LARGE
@@ -97,19 +97,12 @@ class Track:
             return sensor.score_miss
         return 0
 
-    def trace(self):
-        """Backtrace lineage until end or any of the previously searched."""
-        t = self
-        while t:
-            yield t
-            t = t.parent
-
     def __repr__(self):
         """Return string representation of object."""
         return "Tr({}/{}/{}: {} {}{})".format(
             self.target._id,
             self._id,
-            self.parent._id if self.parent else "x",
+            self.parent_id if self.parent_id else "x",
             "[{}]".format(", ".join("{:.12f}".format(float(x))
                                     for x in self.filter.x)),
             "x" if self.report is None else "",

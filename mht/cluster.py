@@ -11,50 +11,67 @@ from .target import Target
 from .clusterhyp import ClusterHypothesis
 from .hypgen import murty, permgen
 from .utils import PrioItem, connected_components, LARGE
+from .kf import DefaultTargetInit
+
+
+class ClusterParameters:
+    """Cluster parmeters."""
+
+    def __init__(self, **kwargs):
+        """Init."""
+        for name, value in kwargs.items():
+            self.__dict__[name] = value
+
+ClusterParameters.k_max = 100
+ClusterParameters.hp_limit = LARGE
+ClusterParameters.nll_limit = LARGE
+ClusterParameters.init_target_tracker = DefaultTargetInit(0.1)
 
 
 class Cluster:
     """MHT class."""
 
-    def __init__(self, tracker):
+    def __init__(self, initer):
         """Init."""
-        self.tracker = tracker
         self.targets = []
         self.hypotheses = []
         self.ambiguous_tracks = []
         self.assigned_reports = set()
+        initer(self)
 
     @staticmethod
-    def initial(tracker, initial_target_filters):
+    def initial(initer, initial_target_filters):
         """Create initial cluster."""
-        self = Cluster(tracker)
+        self = Cluster(initer)
         for f in initial_target_filters:
-            self.targets.append(Target.initial(tracker, f))
+            self.targets.append(Target.initial(self, f))
         self.hypotheses = [ClusterHypothesis.initial(
-            self, [t.tracks[None] for t in self.targets])]
+            [t.tracks[None] for t in self.targets])]
         return self
 
     @staticmethod
-    def empty(tracker):
+    def empty(initer):
         """Create empty cluster."""
-        return Cluster.initial(tracker, [])
+        return Cluster.initial(initer, [])
 
     @staticmethod
-    def merge(tracker, clusters):
+    def merge(initer, clusters):
         """Merge multiple clusters."""
-        self = Cluster(tracker)
+        self = Cluster(initer)
 
         # Hypotheses
-        self.hypotheses = [ClusterHypothesis.merge(self, hyps[0])
+        self.hypotheses = [ClusterHypothesis.merge(hyps[0])
                            for hyps in islice(permgen([[(h.score(), h)
                                                         for h in c.hypotheses]
                                                        for c in clusters],
                                                       True),
-                                              0, self.tracker.k_max)]
+                                              0, self.params.k_max)]
         self.normalise()
 
         # Targets
         self.targets = list({t for h in self.hypotheses for t in h.targets})
+        for t in self.targets:
+            t.cluster = self
 
         # Ambiguous tracks
         self.ambiguous_tracks = [
@@ -62,9 +79,9 @@ class Cluster:
 
         return self
 
-    def _splitter(self, split_targets):
+    def _splitter(self, initer, split_targets):
         """Perform actual split."""
-        cl = Cluster(self.tracker)
+        cl = Cluster(initer)
 
         # Targets
         cl.targets = split_targets
@@ -76,7 +93,9 @@ class Cluster:
         cl.normalise()
 
         # Targets
-        self.targets = list({t for h in self.hypotheses for t in h.targets})
+        cl.targets = list({t for h in cl.hypotheses for t in h.targets})
+        for t in self.targets:
+            t.cluster = cl
 
         # Ambiguous tracks
         cl.ambiguous_tracks = [{tr for tr in atrs
@@ -87,7 +106,7 @@ class Cluster:
 
         return cl
 
-    def split(self):
+    def split(self, initer):
         """Split cluster into multiple independent clusters."""
         connections = defaultdict(set)
         for atrs in self.ambiguous_tracks:
@@ -99,7 +118,7 @@ class Cluster:
         unassigned_targets = set(self.targets).difference(*new_clusters)
         new_clusters += [{t} for t in unassigned_targets]
         if len(new_clusters) > 1:
-            return {self._splitter(c) for c in new_clusters}
+            return {self._splitter(initer, c) for c in new_clusters}
         else:
             return {self}
 
@@ -123,11 +142,11 @@ class Cluster:
             """Limit hypothesis draws."""
             min_score = LARGE
             scores = []
-            for ph, c, h in islice(g, None, self.tracker.k_max):
+            for ph, c, h in islice(g, None, self.params.k_max):
                 scores.append(c)
                 min_score = min(min_score, c)
                 s = log(sum(exp(min_score - s) for s in scores)) - min_score
-                if c + s > self.tracker.hp_limit:
+                if c + s > self.params.hp_limit:
                     return
                 yield ph, h
 
@@ -136,7 +155,7 @@ class Cluster:
         # Generate new hyptheses
         self.hypotheses = list(sorted(list({
             ch for ch in
-            (ClusterHypothesis.new(self, ph, hyp, scan.sensor)
+            (ClusterHypothesis.new(ph, hyp, scan.sensor)
              for ph, hyp in hlimit(self._assignment_hypotheses(scan, new_ts)))
             if len(ch.tracks) > 0})))
         self.normalise()
@@ -169,8 +188,8 @@ class Cluster:
             nonlocal new_targets
             if report not in new_targets:
                 new_targets[report] = Target.new(
-                    self.tracker,
-                    self.tracker.init_target_tracker(report),
+                    self,
+                    self.params.init_target_tracker(report),
                     report, scan.sensor)
             return new_targets[report].tracks[report]
 
@@ -247,3 +266,16 @@ class Cluster:
                 a = next(m, None)
             if a:
                 Q.put(PrioItem(a[0], (a, ph, m)))
+
+    def bbox(self):
+        """Get minimal boundingbox."""
+        # FIXME: Cache!!!
+        bboxes = (tr.filter.bbox()
+                  for t in self.targets for tr in t.tracks.values())
+        minbox = next(bboxes)
+        for bbox in bboxes:
+            minbox = (min(minbox[0], bbox[0]),
+                      max(minbox[1], bbox[1]),
+                      min(minbox[2], bbox[2]),
+                      max(minbox[3], bbox[3]))
+        return minbox

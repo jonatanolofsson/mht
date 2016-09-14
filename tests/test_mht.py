@@ -16,12 +16,12 @@ class TestMHT(unittest.TestCase):
         """Set up testcase."""
         self.tracker = mht.MHT(initial_targets=[
             mht.kf.KFilter(
-                mht.models.constant_velocity_2d(0.1),
+                mht.models.ConstantVelocityModel(0.1),
                 np.matrix([[0.0], [0.0], [1.0], [1.0]]),
                 np.eye(4)
             ),
             mht.kf.KFilter(
-                mht.models.constant_velocity_2d(0.1),
+                mht.models.ConstantVelocityModel(0.1),
                 np.matrix([[0.0], [10.0], [1.0], [-1.0]]),
                 np.eye(4)
             )

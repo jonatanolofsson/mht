@@ -4,25 +4,24 @@
 class ClusterHypothesis:
     """Class to represent a cluster hypothesis."""
 
-    def __init__(self, cluster):
+    def __init__(self):
         """Init."""
-        self.cluster = cluster
         self.total_score = 0
         self.tracks = []
 
     @staticmethod
-    def initial(cluster, tracks):
+    def initial(tracks):
         """Create initial hypothesis."""
-        self = ClusterHypothesis(cluster)
+        self = ClusterHypothesis()
         self.tracks = tracks
         self.targets = {tr.target for tr in self.tracks}
         self.calculate_score()
         return self
 
     @staticmethod
-    def new(cluster, phyp, assignments, sensor):
+    def new(phyp, assignments, sensor):
         """Create new hypothesis."""
-        self = ClusterHypothesis(cluster)
+        self = ClusterHypothesis()
         self.tracks = [track.assign(report, sensor)
                        for report, track in assignments]
 
@@ -38,9 +37,9 @@ class ClusterHypothesis:
         return self
 
     @staticmethod
-    def merge(cluster, hyps):
+    def merge(hyps):
         """Merge n hyps."""
-        self = ClusterHypothesis(cluster)
+        self = ClusterHypothesis()
         self.tracks = [x for c in hyps for x in c.tracks]
         self.targets = {tr.target for tr in self.tracks}
         self.calculate_score()
@@ -51,7 +50,7 @@ class ClusterHypothesis:
         tracks = [tr for tr in self.tracks if tr.target in split_targets]
         if len(tracks) == 0:
             return None
-        h = ClusterHypothesis(self.cluster)
+        h = ClusterHypothesis()
         h.tracks = tracks
         h.targets = {tr.target for tr in h.tracks}
         h.calculate_score()

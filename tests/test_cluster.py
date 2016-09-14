@@ -32,8 +32,8 @@ class TestClusterInit(unittest.TestCase):
         cluster = Cluster.initial(tracker, filters)
 
         self.assertEqual(len(cluster.hypotheses), 1)
-        tmock.initial.assert_has_calls([call(f) for f in filters])
-        chmock.initial.assert_called_once_with(cluster, tracks)
+        tmock.initial.assert_has_calls([call(tracker, f) for f in filters])
+        chmock.initial.assert_called_once_with(tracks)
 
 
 class TestClustering(unittest.TestCase):
@@ -72,19 +72,19 @@ class TestClustering(unittest.TestCase):
         merged_cluster = Cluster.merge(self.tracker, self.clusters)
 
         self.assertEqual(set(self.targets), set(merged_cluster.targets))
-        chmock.merge.assert_called_once_with(merged_cluster, self.hyps)
+        chmock.merge.assert_called_once_with(self.hyps)
         self.assertEqual(len(merged_cluster.hypotheses), 1)
 
     def test_cluster_merged_targets(self):
         """Test cluster merging."""
         tracker = mht.MHT(initial_targets=[
             mht.kf.KFilter(
-                mht.models.constant_velocity_2d(0.1),
+                mht.models.ConstantVelocityModel(0.1),
                 np.matrix([[0.0], [0.0], [1.0], [1.0]]),
                 np.eye(4)
             ),
             mht.kf.KFilter(
-                mht.models.constant_velocity_2d(0.1),
+                mht.models.ConstantVelocityModel(0.1),
                 np.matrix([[0.0], [10.0], [1.0], [-1.0]]),
                 np.eye(4)
             ),

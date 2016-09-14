@@ -1,27 +1,27 @@
 """Kalman Filter implementation for MHT target."""
 
 from math import log as ln
-from math import sqrt
-from math import pi
+from math import sqrt, pi
 from numpy.linalg import det
 import numpy as np
 
 from . import models
+from .utils import gaussian_bbox
 
 
-def kfinit(q):
+class DefaultTargetInit:
     """Default target initiator."""
-    def inner(report):
-        model = models.constant_velocity_2d(q)
+
+    def __init__(self, q):
+        """Init."""
+        self.q = q
+
+    def __call__(self, report):
+        """Init new target from report."""
+        model = models.ConstantVelocityModel(self.q)
         x0 = np.matrix([report.z[0], report.z[1], 0.0, 0.0]).T
         P0 = np.eye(4) * 2
         return KFilter(model, x0, P0)
-    return inner
-
-
-def from_report(r):
-    """Init KFilter from report."""
-    return KFilter()
 
 
 class KFilter:
@@ -32,6 +32,7 @@ class KFilter:
         self.model = model
         self.x = x0
         self.P = P0
+        self.trace = []
 
     def __repr__(self):
         """Return string representation of measurement."""
@@ -39,7 +40,9 @@ class KFilter:
 
     def predict(self, dT):
         """Perform motion prediction."""
-        self.x, self.P = self.model(self.x, self.P, dT)
+        new_x, new_P = self.model(self.x, self.P, dT)
+        self.trace.append((new_x, new_P))
+        self.x, self.P = new_x, new_P
 
     def correct(self, m):
         """Perform correction (measurement) update."""
@@ -61,3 +64,7 @@ class KFilter:
         S = H * self.P * H.T + m.R
         score = dz.T * S.I * dz / 2.0 + ln(2 * pi * sqrt(det(S)))
         return float(score)
+
+    def bbox(self, nstd=2):
+        """Get minimal bounding box approximation."""
+        return gaussian_bbox(self.x[0:2], self.P[0:2, 0:2])
