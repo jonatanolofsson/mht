@@ -64,7 +64,7 @@ class MHT:
         ids = ', '.join(str(c._id) for c in clusters)
         self.db.execute("DELETE FROM clusters WHERE id IN ({})".format(ids))
         if self.matching_algorithm == "rtree":
-            self.db.execute("DELETE FROM clusters_index WHERE id IN ({})"
+            self.db.execute("DELETE FROM cluster_index WHERE id IN ({})"
                             .format(ids))
 
     def _load_clusters(self, bbox=None):
@@ -86,7 +86,7 @@ class MHT:
         else:
             def get_clusters(bbox):
                 return self.db.execute(
-                    "SELECT cluster.data FROM clusters "
+                    "SELECT clusters.data FROM clusters "
                     "INNER JOIN cluster_index "
                     "ON clusters.id = cluster_index.id WHERE "
                     "cluster_index.max_x >= ? AND "
@@ -105,9 +105,9 @@ class MHT:
             clusters = self.active_clusters
         if self.matching_algorithm == "rtree":
             for c in clusters:
-                self.db.execute("REPLACE INTO clusters_index "
-                                "(min_x, max_x, min_y, max_y) "
-                                "VALUES (?, ?, ?, ?)", c.bbox())
+                self.db.execute("REPLACE INTO cluster_index "
+                                "(id, min_x, max_x, min_y, max_y) "
+                                "VALUES (?, ?, ?, ?, ?)", (c._id,) + c.bbox())
         for c in clusters:
             self.db.execute("UPDATE clusters SET data=? WHERE id=?",
                             (pickle.dumps(c), c._id))
@@ -115,7 +115,7 @@ class MHT:
     def _match_clusters(self, r):
         """Select clusters within reasonable range."""
         return {c for c in self.active_clusters
-                if any(overlap(c.bbox(), r.bbox()))}
+                if overlap(c.bbox(), r.bbox())}
 
     def _split_clusters(self):
         """Split clusters."""

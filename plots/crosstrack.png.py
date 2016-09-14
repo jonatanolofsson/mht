@@ -30,8 +30,8 @@ def draw():
                 np.eye(4)
             )
         ],
-        cparams=mht.ClusterParameters(k_max=50, nll_limit=4, hp_limit=7)
-        # , matching_algorithm="rtree"
+        cparams=mht.ClusterParameters(k_max=50, nll_limit=4, hp_limit=7),
+        matching_algorithm="rtree"
         )
     targets = [
         np.array([[0.0], [0.0], [1.0], [1.0]]),
@@ -84,7 +84,7 @@ def draw():
                  [t[1] for t in targets],
                  marker='D', color='y', alpha=.5, linestyle='None')
     print(hyps[0])
-    mht.plot.plot_hyptrace(hyps[0], covellipse=False)
+    mht.plot.plot_hyptrace(hyps[0], covellipse=True)
     mht.plot.plt.axis([-1, k + 1, -k - 1, k + 1 + 10])
     mht.plot.plt.ylabel('Tracks')
     mht.plot.plt.figure()

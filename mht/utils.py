@@ -77,4 +77,7 @@ def gaussian_bbox(x, P, nstd=2):
     dx = sqrt(ux*ux + vx*vx)
     dy = sqrt(uy*uy + vy*vy)
 
-    return (x[0] - dx, x[0] + dx, x[1] - dy, x[1] + dy)
+    return (float(x[0] - dx),
+            float(x[0] + dx),
+            float(x[1] - dy),
+            float(x[1] + dy))
