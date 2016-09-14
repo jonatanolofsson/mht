@@ -17,25 +17,33 @@ class TestTrack(unittest.TestCase):
         self.target = MagicMock()
         self.parent = MagicMock()
         self.filter = MagicMock()
+        self.sensor = MagicMock()
 
     def test_new(self):
         """Test creation of new track."""
-        tr = Track.new(self.target, self.filter, 0, None)
+        report = MagicMock()
+        self.sensor.score_extraneous = 5
+        tr = Track.new(self.target, self.filter, self.sensor, report)
 
         self.assertEqual(tr.target, self.target)
-        self.assertIs(tr.parent, None)
+        self.assertIs(tr.parent_id, None)
         self.assertEqual(tr.filter, self.filter)
-        self.assertEqual(tr.score(), 0)
+        self.assertEqual(tr.score(), 5)
 
     def test_extend(self):
         """Test extending existing track."""
         self.filter.correct = MagicMock(return_value=1)
-        root = Track.new(self.target, self.filter, 10, None)
+        root_report = MagicMock()
+        self.sensor.score_extraneous = 10
+        self.sensor.score_miss = 0
+        self.sensor.score_found = 0
+        root = Track.new(self.target, self.filter, self.sensor, root_report)
+        root._id = 0
         report = MagicMock()
 
-        tr = root.extend(report)
+        tr = Track.extend(root, report, self.sensor)
 
         self.assertEqual(tr.target, self.target)
-        self.assertEqual(tr.parent, root)
+        self.assertEqual(tr.parent_id, 0)
         self.assertIsNot(tr.filter, self.filter)
         self.assertEqual(tr.score(), 11)

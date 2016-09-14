@@ -22,5 +22,4 @@ class TestTarget(unittest.TestCase):
         """Test creation of new target."""
         t = Target.initial(self.filter, 0)
 
-        trackmock.new.assert_called_once_with(t, self.filter, 0, None)
         self.assertEqual(len(t.tracks), 1)

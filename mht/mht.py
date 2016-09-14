@@ -170,14 +170,9 @@ class MHT:
 
     def register_scan(self, scan):
         """Register new scan."""
-        print()
-        print("before:", len(self.active_clusters))
         for cluster, creports in self._cluster(scan):
             cluster.register_scan(Scan(scan.sensor, creports))
         self._split_clusters()
-        print("after:", len(self.active_clusters))
-        for c in self.active_clusters:
-            print(len(c.hypotheses))
         self._save_clusters()
 
     def global_hypotheses(self, bbox=None):

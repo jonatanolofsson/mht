@@ -19,7 +19,7 @@ class TestClusterInit(unittest.TestCase):
     @patch('mht.cluster.ClusterHypothesis')
     def test_initial(self, chmock, tmock):
         """Test init."""
-        tracker = MagicMock()
+        initer = MagicMock()
         targets = [MagicMock(), MagicMock()]
         tracks = [MagicMock(), MagicMock()]
         filters = [MagicMock(), MagicMock()]
@@ -29,11 +29,12 @@ class TestClusterInit(unittest.TestCase):
         chmock.initial = MagicMock(return_value=hyp)
         tmock.initial = MagicMock(side_effect=targets)
 
-        cluster = Cluster.initial(tracker, filters)
+        cluster = Cluster.initial(initer, filters)
 
         self.assertEqual(len(cluster.hypotheses), 1)
-        tmock.initial.assert_has_calls([call(tracker, f) for f in filters])
+        tmock.initial.assert_has_calls([call(cluster, f) for f in filters])
         chmock.initial.assert_called_once_with(tracks)
+        self.assertEqual(initer.call_count, 1)
 
 
 class TestClustering(unittest.TestCase):
@@ -41,8 +42,7 @@ class TestClustering(unittest.TestCase):
 
     def setUp(self):
         """Set up."""
-        self.tracker = MagicMock()
-        self.tracker.k_max = 10
+        self.initer = MagicMock()
         self.tracks = [MagicMock(), MagicMock(), MagicMock()]
         self.filters = [MagicMock(), MagicMock(), MagicMock()]
         for i, tr in enumerate(self.tracks):
@@ -69,11 +69,12 @@ class TestClustering(unittest.TestCase):
         chmock.merge = MagicMock(return_value=merged_hyp)
         permgen.return_value = [(self.hyps, None)]
 
-        merged_cluster = Cluster.merge(self.tracker, self.clusters)
+        merged_cluster = Cluster.merge(self.initer, self.clusters)
 
         self.assertEqual(set(self.targets), set(merged_cluster.targets))
         chmock.merge.assert_called_once_with(self.hyps)
         self.assertEqual(len(merged_cluster.hypotheses), 1)
+        self.assertEqual(self.initer.call_count, 1)
 
     def test_cluster_merged_targets(self):
         """Test cluster merging."""
@@ -89,12 +90,13 @@ class TestClustering(unittest.TestCase):
                 np.eye(4)
             ),
         ])
+        tracker._load_clusters()
+        self.assertEqual(len(tracker.active_clusters), 2)
 
-        self.assertEqual(len(tracker.clusters), 2)
-
-        merged_cluster = Cluster.merge(tracker, tracker.clusters)
+        merged_cluster = Cluster.merge(self.initer, tracker.active_clusters)
 
         self.assertEqual(len(merged_cluster.targets), 2)
+        self.assertEqual(self.initer.call_count, 1)
 
     @patch('mht.cluster.Target')
     @patch('mht.cluster.ClusterHypothesis')
@@ -102,11 +104,12 @@ class TestClustering(unittest.TestCase):
         """Test cluster splitting."""
         tmock.initial = MagicMock(side_effect=self.targets)
         chmock.initial = MagicMock(side_effect=self.hyps)
-        merged_cluster = Cluster.initial(self.tracker, self.filters)
+        merged_cluster = Cluster.initial(self.initer, self.filters)
         merged_cluster.ambiguous_tracks = [set(self.tracks[0:2])]
 
-        split_clusters = merged_cluster.split()
+        split_clusters = merged_cluster.split(self.initer)
 
         self.assertEqual(len(split_clusters), 2)
         for c in split_clusters:
             self.assertEqual(len(c.hypotheses), 1)
+        self.assertEqual(self.initer.call_count, 3)

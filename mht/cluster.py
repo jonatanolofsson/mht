@@ -37,7 +37,10 @@ class Cluster:
         self.hypotheses = []
         self.ambiguous_tracks = []
         self.assigned_reports = set()
+        self.params = None
         initer(self)
+        if self.params is None:
+            self.params = ClusterParameters()
 
     @staticmethod
     def initial(initer, initial_target_filters):

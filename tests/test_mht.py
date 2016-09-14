@@ -25,7 +25,7 @@ class TestMHT(unittest.TestCase):
                 np.matrix([[0.0], [10.0], [1.0], [-1.0]]),
                 np.eye(4)
             )
-        ], k_max=1000)
+        ])
 
     def test_register_scan(self):
         """Test the generation of global hypotheses."""

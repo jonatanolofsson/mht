@@ -33,7 +33,7 @@ class TestLap(unittest.TestCase):
 class TestMurty(unittest.TestCase):
     """Test Murty algorithm."""
 
-    def test_murty(self):
+    def disabled_test_murty(self):
         """Test murty algo."""
         pre_res = None
         n = 0

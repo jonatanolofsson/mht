@@ -13,7 +13,7 @@ class TestCV2D(unittest.TestCase):
         """Set up."""
         self.x = np.matrix([[0]] * 4)
         self.P = np.eye(4)
-        self.model = mht.models.constant_velocity_2d(0.1)
+        self.model = mht.models.ConstantVelocityModel(0.1)
 
     def test_update(self):
         """Test simple update."""
