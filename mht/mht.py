@@ -69,13 +69,13 @@ class MHT:
 
     def _load_clusters(self, bbox=None):
         """Load clusters."""
-        if self.matching_algorithm is None:
+        if self.matching_algorithm is None or bbox is None:
             self.active_clusters = self.query_clusters(None)
         elif self.matching_algorithm == "naive":
             all_clusters = self.query_clusters(None)
             self.active_clusters = {
                 c for c in all_clusters
-                if overlap(c.bbox(), bbox())}
+                if overlap(c.bbox(), bbox)}
         elif self.matching_algorithm == "rtree":
             self.active_clusters = self.query_clusters(bbox)
 
