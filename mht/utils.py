@@ -48,6 +48,14 @@ def overlap(a, b):
             a[3] >= b[2] and a[2] <= b[3])
 
 
+def overlap_pa(a, b):
+    """Return percentage of a being in b."""
+    intersection = max(0, min(a[1], b[1]) - max(a[0], b[0])) \
+        * max(0, min(a[3], b[3]) - max(a[2], b[2]))
+    aa = (a[1] - a[0]) * (a[3] - a[2])
+    return intersection / aa
+
+
 def eigsorted(cov):
     """Return eigenvalues, sorted."""
     vals, vecs = np.linalg.eigh(cov)

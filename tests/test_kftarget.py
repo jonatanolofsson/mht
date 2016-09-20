@@ -2,7 +2,10 @@
 
 import unittest
 import numpy as np
+import os
+import sys
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import mht
 
 
@@ -12,7 +15,7 @@ class TestKFTarget(unittest.TestCase):
     def setUp(self):
         """Set up."""
         model = mht.models.ConstantVelocityModel(0.1)
-        self.x0 = np.matrix([[0.0]] * 4)
+        self.x0 = np.array([0.0] * 4)
         self.P0 = np.eye(4)
         self.target = mht.kf.KFilter(model, self.x0, self.P0)
 
@@ -24,7 +27,7 @@ class TestKFTarget(unittest.TestCase):
 
     def test_correct(self):
         """Correction step."""
-        z = np.matrix([[2.0]] * 2)
+        z = np.array([2.0] * 2)
         R = np.eye(2)
         m = mht.Report(z, R, mht.models.velocity_measurement)
         self.target.correct(m)

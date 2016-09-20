@@ -1,8 +1,9 @@
 """Track class."""
 
 from copy import deepcopy
+from math import exp, log
 
-from .utils import LARGE
+from .utils import LARGE, overlap, overlap_pa
 
 NEW_EXIST_SCORE = 1
 MAX_EXIST_SCORE = 4
@@ -63,7 +64,7 @@ class Track:
         if None not in self.children:
             new = Track(self.target, self, deepcopy(self.filter), None)
             if sensor.in_fov(self.filter.x):
-                new.my_score = sensor.score_miss
+                new.my_score = self.miss_score(sensor)
                 new.exist_score = max(self.exist_score - 1, 0)
             else:
                 new.my_score = 0
@@ -95,24 +96,24 @@ class Track:
 
     def match_score(self, r, sensor):
         """Find the score of assigning a report to the track."""
-        if sensor.in_fov(self.filter.x):
+        if overlap(self.filter.bbox(), sensor.bbox()):
             nll = self.filter.nll(r)
             if nll < self.target.cluster.params.nll_limit:
-                return nll - sensor.score_found - sensor.score_miss
+                return nll - self.found_score(sensor) \
+                    - self.miss_score(sensor)
             return LARGE
         return LARGE
 
     def found_score(self, sensor):
         """Find the score of assigning any report to the track."""
-        if sensor.in_fov(self.filter.x):
-            return sensor.score_found
-        return LARGE
+        score_miss = self.miss_score(sensor)
+        return -log(1 - exp(-score_miss)) \
+            if score_miss > 1e-8 else LARGE
 
     def miss_score(self, sensor):
         """Find the score of not assigning any report to the track."""
-        if sensor.in_fov(self.filter.x):
-            return sensor.score_miss
-        return 0
+        return sensor.score_miss \
+            * overlap_pa(self.filter.bbox(), sensor.bbox())
 
     def __repr__(self):
         """Return string representation of object."""

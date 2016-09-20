@@ -17,12 +17,12 @@ class TestMHT(unittest.TestCase):
         self.tracker = mht.MHT(initial_targets=[
             mht.kf.KFilter(
                 mht.models.ConstantVelocityModel(0.1),
-                np.matrix([[0.0], [0.0], [1.0], [1.0]]),
+                np.array([0.0, 0.0, 1.0, 1.0]),
                 np.eye(4)
             ),
             mht.kf.KFilter(
                 mht.models.ConstantVelocityModel(0.1),
-                np.matrix([[0.0], [10.0], [1.0], [-1.0]]),
+                np.array([0.0, 10.0, 1.0, -1.0]),
                 np.eye(4)
             )
         ])
@@ -33,11 +33,11 @@ class TestMHT(unittest.TestCase):
             mht.sensors.EyeOfMordor(3, 12),
             [
                 mht.Report(
-                    np.matrix([[8.0], [8.0]]),
+                    np.array([8.0, 8.0]),
                     np.eye(2),
                     mht.models.position_measurement),
                 mht.Report(
-                    np.matrix([[2.0], [2.0]]),
+                    np.array([2.0, 2.0]),
                     np.eye(2),
                     mht.models.position_measurement)
             ]))
@@ -60,26 +60,25 @@ class TestMHT(unittest.TestCase):
 
     def test_track(self):
         """Test repeated updates from moving targets."""
-        target_1 = np.matrix([[0.0], [0.0], [1.0], [1.0]])
-        target_2 = np.matrix([[0.0], [10.0], [1.0], [-1.0]])
+        targets = [
+            np.array([0.0, 0.0, 1.0, 1.0]),
+            np.array([0.0, 10.0, 1.0, -1.0])
+        ]
         for t in range(3):
             if t > 0:
                 self.tracker.predict(1)
-                target_1[0:2] += target_1[2:]
-                target_2[0:2] += target_2[2:]
+            for t in targets:
+                t[0:2] += t[2:]
 
+            reports = {mht.Report(
+                np.random.multivariate_normal(t[0:2], np.diag([0.1, 0.1])),  # noqa
+                # t[0:2],
+                np.eye(2) * 0.001,
+                mht.models.position_measurement,
+                i)
+                for i, t in enumerate(targets)}
             self.tracker.register_scan(mht.Scan(
-                mht.sensors.EyeOfMordor(3, 12),
-                [
-                    mht.Report(
-                        target_1[0:2] + np.random.normal(size=(2, 1)) * 0.3,
-                        np.eye(2),
-                        mht.models.position_measurement),
-                    mht.Report(
-                        target_2[0:2] + np.random.normal(size=(2, 1)) * 0.3,
-                        np.eye(2),
-                        mht.models.position_measurement)
-                ]))
+                mht.sensors.EyeOfMordor(3, 12), reports))
 
 
 if __name__ == '__main__':

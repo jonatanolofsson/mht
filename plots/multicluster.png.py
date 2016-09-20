@@ -14,7 +14,7 @@ sys.path.append(
 import mht
 
 
-np.random.seed(1)
+np.random.seed(2)
 
 
 def draw():
@@ -46,7 +46,7 @@ def draw():
     ntargets_true = []
     ntargets = []
     nhyps = []
-    for k in range(25):
+    for k in range(35):
         # print()
         # print()
         print("k:", k)
@@ -83,7 +83,7 @@ def draw():
         mlhyp = next(tracker.global_hypotheses())
         nclusters.append(len(tracker.active_clusters))
         ntargets.append(len(mlhyp.targets))
-        ntargets_true.append(ntt)
+        ntargets_true.append(len(targets))
         nhyps.append(reduce(operator.mul, (len(c.hypotheses)
                                            for c in tracker.active_clusters)))
         plt.plot([t[0] for t in targets], [t[1] for t in targets],

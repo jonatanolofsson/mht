@@ -3,9 +3,9 @@
 import unittest
 from unittest.mock import MagicMock, call
 from unittest.mock import patch
+import numpy as np
 import os
 import sys
-import numpy as np
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import mht
@@ -81,12 +81,12 @@ class TestClustering(unittest.TestCase):
         tracker = mht.MHT(initial_targets=[
             mht.kf.KFilter(
                 mht.models.ConstantVelocityModel(0.1),
-                np.matrix([[0.0], [0.0], [1.0], [1.0]]),
+                np.array([0.0, 0.0, 1.0, 1.0]),
                 np.eye(4)
             ),
             mht.kf.KFilter(
                 mht.models.ConstantVelocityModel(0.1),
-                np.matrix([[0.0], [10.0], [1.0], [-1.0]]),
+                np.array([0.0, 10.0, 1.0, -1.0]),
                 np.eye(4)
             ),
         ])

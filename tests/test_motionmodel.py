@@ -2,7 +2,10 @@
 
 import unittest
 import numpy as np
+import os
+import sys
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import mht
 
 
@@ -11,7 +14,7 @@ class TestCV2D(unittest.TestCase):
 
     def setUp(self):
         """Set up."""
-        self.x = np.matrix([[0]] * 4)
+        self.x = np.array([0] * 4)
         self.P = np.eye(4)
         self.model = mht.models.ConstantVelocityModel(0.1)
 
