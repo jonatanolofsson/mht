@@ -111,6 +111,8 @@ class Cluster:
 
     def split(self, initer):
         """Split cluster into multiple independent clusters."""
+        if len(self.hypotheses) == 0:
+            return set()
         connections = defaultdict(set)
         for atrs in self.ambiguous_tracks:
             targets = {tr.target for tr in atrs}
@@ -201,43 +203,30 @@ class Cluster:
             M = len(scan.reports)
             N = len(ph.tracks)  # Nof targets in hypothesis
 
-            def uniqify(g):
-                """Dont return same value twice in a row from generator."""
-                '''
-                Compare only report assignments, as the lower right corner of C
-                will produce non-unique assignments.
-                '''
-                last = None
-                for i in g:
-                    a = i[1][:M]
-                    if a == last:
-                        continue
-                    last = a
-                    yield i
+            miss_all_score = sum(tr.miss_score(scan.sensor)
+                                 for tr in ph.tracks)
+
+            if M == 0:
+                return iter([(ph.score() + miss_all_score, iter([]))])
 
             '''
             Form C-matrix:  |1 2|
-                            |3 4|
             1: MxN Cost of assigning measurent r to target c.
             2: Diagonal MxM cost of extraneous report (new or false).
-            3: Diagonal NxN cost of not assigning any report to target.
-            4: NxM matrix filled with "cost" of assigning report to target.
             All other values LARGE to be avoided by Murty algorithm.
             '''
-            C = np.empty((N + M, N + M))
+            C = np.empty((M, N + M))
             C.fill(LARGE)
             for i, tr in enumerate(ph.tracks):
                 C[range(M), i] = [tr.match_score(r, scan.sensor)
                                   for r in scan.reports]
-                C[M + i, i] = tr.miss_score(scan.sensor)
             C[range(M), range(N, N + M)] = scan.sensor.score_extraneous
-            C[M:N + M, N:N + M] = 0
 
             # Murty solution S: (cost, assignments)
-            return ((ph.score() + S[0],
+            return ((ph.score() + S[0] + miss_all_score,
                      ((r, ph.tracks[a] if a < N else new_target_track(r))
                       for r, a in zip(scan.reports, S[1])))
-                    for S in uniqify(murty(C)))
+                    for S in murty(C))
 
         murties = ((ph, get_murties(ph)) for ph in self.hypotheses)
 
@@ -245,7 +234,7 @@ class Cluster:
         Algorithm description:
         If all parent hyps has entered the comparison, draw next
          parent hyp as this may be a candidate to switch to.
-        While current parent hypothesis is cheaper, draw from its
+        While current parent hypothesis is cheaper, draw from it
          children assignments.
         '''
         Q = queue.PriorityQueue()

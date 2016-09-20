@@ -22,8 +22,14 @@ class Track:
         self.children = {}
         self.parent_score = parent.score() if parent else 0
         self.exist_score = parent.exist_score if parent else 0
-        self._id = self.__class__._counter
+        self._trid = self.__class__._counter
+        self._id = target._id
         self.__class__._counter += 1
+
+        self.sources = deepcopy(parent.sources) if parent else set()
+        if report:
+            self.sources.add(report.source)
+        self.trlen = (parent.trlen + 1) if parent else 1
 
     @staticmethod
     def initial(target, filter):
@@ -45,7 +51,7 @@ class Track:
     @staticmethod
     def extend(parent, report, sensor):
         """Create child track."""
-        filt = deepcopy(parent.filter)
+        filt = parent.target.cluster.params.init_target_tracker(report, parent)
         score = filt.correct(report)
         self = Track(parent.target, parent, filt, report)
         self.my_score = score - sensor.score_found
@@ -56,11 +62,12 @@ class Track:
         """Missed detection track."""
         if None not in self.children:
             new = Track(self.target, self, deepcopy(self.filter), None)
-            new.my_score = self.miss_score(sensor)
-            if self.my_score == 0:
-                new.exist_score = self.exist_score
-            else:
+            if sensor.in_fov(self.filter.x):
+                new.my_score = sensor.score_miss
                 new.exist_score = max(self.exist_score - 1, 0)
+            else:
+                new.my_score = 0
+                new.exist_score = self.exist_score
             self.children[None] = new
         return self.children[None]
 
@@ -73,6 +80,10 @@ class Track:
         if report not in self.children:
             self.children[report] = self.target.new_tracks[report]
         return self.children[report]
+
+    def is_new(self):
+        """Return true if target is new."""
+        return (self.parent_id is None)
 
     def predict(self, dT):
         """Move to next time step."""
@@ -87,8 +98,14 @@ class Track:
         if sensor.in_fov(self.filter.x):
             nll = self.filter.nll(r)
             if nll < self.target.cluster.params.nll_limit:
-                return self.filter.nll(r) - sensor.score_found
+                return nll - sensor.score_found - sensor.score_miss
             return LARGE
+        return LARGE
+
+    def found_score(self, sensor):
+        """Find the score of assigning any report to the track."""
+        if sensor.in_fov(self.filter.x):
+            return sensor.score_found
         return LARGE
 
     def miss_score(self, sensor):
@@ -99,13 +116,13 @@ class Track:
 
     def __repr__(self):
         """Return string representation of object."""
-        return "Tr({}/{}/{}: {} {}{})".format(
-            self.target._id,
+        return "Tr({}/{}/{}: {} {} {})".format(
             self._id,
+            self._trid,
             self.parent_id if self.parent_id else "x",
             "[{}]".format(", ".join("{:.12f}".format(float(x))
                                     for x in self.filter.x)),
-            "x" if self.report is None else "",
+            "x" if self.report is None else self.report.source,
             self.exist_score
             )
 

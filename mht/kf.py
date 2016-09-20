@@ -1,9 +1,11 @@
 """Kalman Filter implementation for MHT target."""
 
+from copy import deepcopy
 from math import log as ln
 from math import sqrt, pi
 from numpy.linalg import det
 import numpy as np
+from numpy.linalg import inv
 
 from . import models
 from .utils import gaussian_bbox
@@ -16,12 +18,23 @@ class DefaultTargetInit:
         """Init."""
         self.q = q
 
-    def __call__(self, report):
+    def __call__(self, report, parent=None):
         """Init new target from report."""
-        model = models.ConstantVelocityModel(self.q)
-        x0 = np.matrix([report.z[0], report.z[1], 0.0, 0.0]).T
-        P0 = np.eye(4) * 2
-        return KFilter(model, x0, P0)
+        if parent is None:
+            model = models.ConstantVelocityModel(self.q)
+            x0 = np.array([report.z[0], report.z[1], 0.0, 0.0])
+            P0 = np.eye(4) * 2
+            return KFilter(model, x0, P0)
+        elif parent.is_new():
+            model = models.ConstantVelocityModel(self.q)
+            x0 = np.array([report.z[0],
+                           report.z[1],
+                           report.z[0] - parent.filter.x[0],
+                           report.z[1] - parent.filter.x[1]])
+            P0 = np.eye(4)
+            return KFilter(model, x0, P0)
+        else:
+            return deepcopy(parent.filter)
 
 
 class KFilter:
@@ -32,7 +45,7 @@ class KFilter:
         self.model = model
         self.x = x0
         self.P = P0
-        self.trace = []
+        self.trace = [(x0, P0)]
 
     def __repr__(self):
         """Return string representation of measurement."""
@@ -48,21 +61,21 @@ class KFilter:
         """Perform correction (measurement) update."""
         zhat, H = m.mfn(self.x)
         dz = m.z - zhat
-        S = H * self.P * H.T + m.R
-        K = self.P * H.T * S.I
-        self.x += K * dz
-        self.P -= K * H * self.P
+        S = H @ self.P @ H.T + m.R
+        SI = inv(S)
+        K = self.P @ H.T @ SI
+        self.x += K @ dz
+        self.P -= K @ H @ self.P
 
-        # FIXME: lambda_ex / PD according to Bar-Shalom 2007
-        score = dz.T * S.I * dz / 2.0 + ln(2 * pi * sqrt(det(S)))
+        score = dz.T @ SI @ dz / 2.0 + ln(2 * pi * sqrt(det(S)))
         return float(score)
 
     def nll(self, m):
         """Get the nll score of assigning a measurement to the filter."""
         zhat, H = m.mfn(self.x)
         dz = m.z - zhat
-        S = H * self.P * H.T + m.R
-        score = dz.T * S.I * dz / 2.0 + ln(2 * pi * sqrt(det(S)))
+        S = H @ self.P @ H.T + m.R
+        score = dz.T @ inv(S) @ dz / 2.0 + ln(2 * pi * sqrt(det(S)))
         return float(score)
 
     def bbox(self, nstd=2):

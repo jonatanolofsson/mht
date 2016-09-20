@@ -3,7 +3,7 @@
 import matplotlib.colors
 from numpy.random import RandomState
 import matplotlib.pyplot as plt
-from matplotlib.patches import Ellipse
+from matplotlib.patches import Ellipse, Rectangle
 
 from .utils import cov_ellipse
 
@@ -22,7 +22,6 @@ def plot_trace(trace, c=0, covellipse=True, **kwargs):
             ca = plot_cov_ellipse(P[0:2, 0:2], pos)
             ca.set_alpha(0.3)
             ca.set_facecolor(CMAP(c))
-    print("Trace:", len(xs))
     plt.plot(xs, ys, marker='*', color=CMAP(c))
 
 
@@ -50,7 +49,7 @@ def plot_hypothesis(gh, cseed=0, covellipse=True):
         if covellipse:
             ca = plot_cov_ellipse(tr.filter.P[0:2, 0:2], pos)
             ca.set_alpha(0.5)
-            ca.set_facecolor(CMAP(tr.target._id + cseed))
+            ca.set_facecolor(CMAP(tr._id + cseed))
 
 
 def plot_scan(scan):
@@ -58,3 +57,11 @@ def plot_scan(scan):
     plt.plot([float(r.z[0]) for r in scan.reports],
              [float(r.z[1]) for r in scan.reports],
              marker='+', color='r', linestyle='None')
+
+
+def plot_bbox(obj, cseed=0):
+    """Plot bounding box."""
+    bbox = obj.bbox()
+    plt.gca().add_patch(Rectangle(
+        (bbox[0], bbox[2]), bbox[1] - bbox[0], bbox[3] - bbox[2],
+        color=CMAP(obj._id + cseed), alpha=0.3))

@@ -81,3 +81,8 @@ def gaussian_bbox(x, P, nstd=2):
             float(x[0] + dx),
             float(x[1] - dy),
             float(x[1] + dy))
+
+
+def within(p, bbox):
+    """Check if point is within bbox."""
+    return ((bbox[0] <= p[0] <= bbox[1]) and (bbox[2] <= p[1] <= bbox[3]))

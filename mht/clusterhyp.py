@@ -83,4 +83,6 @@ class ClusterHypothesis:
 Tracks:
 \t{}
     """.format(self.score(),
-               "\n\t".join(str(track) for track in self.tracks))
+               "\n\t".join(
+                   str(track)
+                   for track in sorted(self.tracks, key=lambda x: x._id)))

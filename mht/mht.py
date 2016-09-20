@@ -123,7 +123,7 @@ class MHT:
         old_clusters = set()
         for c in self.active_clusters:
             nc = c.split(self.cluster_initer)
-            if len(nc) > 1:
+            if len(nc) != 1:
                 old_clusters.add(c)
             new_clusters |= nc
         self._delete_clusters(old_clusters)
@@ -132,6 +132,8 @@ class MHT:
     def _merge_clusters(self, clusters):
         """Merge multiple clusters."""
         c = Cluster.merge(self.cluster_initer, clusters)
+        c.assigned_reports = {r for c in clusters
+                              for r in c.assigned_reports}
         self._delete_clusters(clusters)
         self._add_clusters({c})
         return c
@@ -217,12 +219,13 @@ Tracks:
 class Report:
     """Class for containing reports."""
 
-    def __init__(self, z, R, mfn):
+    def __init__(self, z, R, mfn, source=None):
         """Init."""
         self.z = z
         self.R = R
         self.mfn = mfn
         self.assigned_tracks = set()
+        self.source = source
 
     def bbox(self, nstd=2):
         """Return report bbox."""

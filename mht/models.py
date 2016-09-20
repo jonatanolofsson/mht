@@ -13,29 +13,22 @@ class ConstantVelocityModel:
     def __call__(self, xprev, Pprev, dT):
         """Step model."""
         x = xprev
-        F = np.matrix([[1, 0, dT, 0],
+        F = np.array([[1, 0, dT, 0],
                        [0, 1, 0, dT],
                        [0, 0, 1, 0],
                        [0, 0, 0, 1]])
-        Q = np.matrix([[dT ** 3 / 3, 0, dT ** 2 / 2, 0],
+        Q = np.array([[dT ** 3 / 3, 0, dT ** 2 / 2, 0],
                        [0, dT ** 3 / 3, 0, dT ** 2 / 2],
                        [0, 0, dT, 0],
                        [0, 0, 0, dT]]) * self.q
-        x = F * xprev
-        P = F * Pprev * F.T + Q
+        x = F @ xprev
+        P = F @ Pprev @ F.T + Q
 
         return (x, P)
 
 
 def position_measurement(x):
     """Velocity measurement model."""
-    H = np.matrix([[1, 0, 0, 0],
+    H = np.array([[1, 0, 0, 0],
                    [0, 1, 0, 0]])
-    return (H * x, H)
-
-
-def velocity_measurement(x):
-    """Velocity measurement model."""
-    H = np.matrix([[0, 0, 1, 0],
-                   [0, 0, 0, 1]])
-    return (H * x, H)
+    return (H @ x, H)
