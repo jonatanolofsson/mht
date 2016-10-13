@@ -28,7 +28,8 @@ class ClusterHypothesis:
         missed = set(phyp.tracks) - {tr for _, tr in assignments}
         self.tracks += [tr.missed(sensor)
                         for tr in missed
-                        if tr.exist_score > 1]
+                        # if tr.exist_score > 1]
+                        ]
 
         self.targets = {tr.target for tr in self.tracks}
 
@@ -40,7 +41,7 @@ class ClusterHypothesis:
     def merge(hyps):
         """Merge n hyps."""
         self = ClusterHypothesis()
-        self.tracks = [x for c in hyps for x in c.tracks]
+        self.tracks = [tr for c in hyps for tr in c.tracks]
         self.targets = {tr.target for tr in self.tracks}
         self.calculate_score()
         return self
@@ -58,7 +59,6 @@ class ClusterHypothesis:
 
     def calculate_score(self):
         """Calculate score."""
-        # FIXME: Cache
         self.total_score = sum(tr.score() for tr in self.tracks)
 
     def score(self):

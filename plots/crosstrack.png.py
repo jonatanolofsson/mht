@@ -18,24 +18,11 @@ np.random.seed(1)
 def draw():
     """Create plot."""
     tracker = mht.MHT(
-        initial_targets=[
-            mht.kf.KFilter(
-                mht.models.ConstantVelocityModel(0.1),
-                np.matrix([[0.0], [0.0], [1.0], [1.0]]),
-                np.eye(4)
-            ),
-            mht.kf.KFilter(
-                mht.models.ConstantVelocityModel(0.1),
-                np.matrix([[0.0], [10.0], [1.0], [-1.0]]),
-                np.eye(4)
-            )
-        ],
-        cparams=mht.ClusterParameters(k_max=50, nll_limit=4, hp_limit=7),
-        matching_algorithm="rtree"
-        )
+        cparams=mht.ClusterParameters(k_max=100, nll_limit=4, hp_limit=5),
+        matching_algorithm="naive")
     targets = [
-        np.array([[0.0], [0.0], [1.0], [1.0]]),
-        np.array([[0.0], [10.0], [1.0], [-1.0]]),
+        np.array([0.0, 0.0, 1.0, 1.0]),
+        np.array([0.0, 10.0, 1.0, -1.0]),
     ]
     hyps = None
     nclusters = []
@@ -43,47 +30,41 @@ def draw():
     ntargets = []
     nhyps = []
     for k in range(25):
-        # print()
-        # print()
-        # print()
-        # print()
-        # print("k:", k)
         if k > 0:
             tracker.predict(1)
             for t in targets:
                 t[0:2] += t[2:]
         if k == 5:
-            targets.append(np.array([[5.0], [5.0], [1.0], [0.0]]))
+            targets.append(np.array([5.0, 5.0, 1.0, 0.0]))
         if k % 7 == 0:
-            targets.append(np.array([[k], [7.0], [0.0], [0.0]])
-                           + np.random.normal(size=(4, 1)) * 0.3)
+            targets.append(np.random.multivariate_normal(
+                np.array([k, 7.0, 0.0, 0.0]),
+                np.diag([0.5] * 4)))
         if k % 7 == 1:
             del targets[-1]
         if k == 10:
-            targets.append(np.array([[10.0], [-30.0], [1.0], [-0.5]]))
+            targets.append(np.array([10.0, -30.0, 1.0, -0.5]))
         if k == 20:
-            targets.append(np.array([[k], [0.0], [1.0], [4.0]]))
+            targets.append(np.array([k, 0.0, 1.0, 4.0]))
 
-        this_scan = mht.Scan(
-            mht.sensors.EyeOfMordor(10, 3),
-            [mht.Report(
-                t[0:2] + np.random.normal(size=(2, 1)) * 0.3,
-                np.eye(2),
-                mht.models.position_measurement)
-             for t in targets])
+        reports = {mht.Report(
+            np.random.multivariate_normal(t[0:2], np.diag([0.1, 0.1])),  # noqa
+            # t[0:2],
+            np.eye(2) * 0.001,
+            mht.models.position_measurement,
+            i)
+            for i, t in enumerate(targets)}
+        this_scan = mht.Scan(mht.sensors.EyeOfMordor(10, 3), reports)
         tracker.register_scan(this_scan)
         hyps = list(tracker.global_hypotheses())
-        # print("hp:", hyps[0].score(), hyps[-1].score())
         nclusters.append(len(tracker.active_clusters))
         ntargets.append(len(hyps[0].targets))
         ntargets_true.append(len(targets))
         nhyps.append(len(hyps))
-        # mht.plot.plot_hypothesis(hyps[0], cseed=2)
         mht.plot.plot_scan(this_scan)
         plt.plot([t[0] for t in targets],
                  [t[1] for t in targets],
                  marker='D', color='y', alpha=.5, linestyle='None')
-    print(hyps[0])
     mht.plot.plot_hyptrace(hyps[0], covellipse=True)
     mht.plot.plt.axis([-1, k + 1, -k - 1, k + 1 + 10])
     mht.plot.plt.ylabel('Tracks')

@@ -3,6 +3,7 @@
 from itertools import chain
 import sqlite3
 import pickle
+import multiprocessing as mp
 
 from .cluster import Cluster, ClusterParameters
 from .hypgen import permgen
@@ -17,26 +18,51 @@ def cluster_initer_factory(tracker, cparams):
     return inner
 
 
+def predict_cluster(args):
+    """Perform parallel time update on cluster."""
+    (cluster, dT) = args
+    cluster.predict(dT)
+    return cluster
+
+
+def correct_cluster(args):
+    """Update cluster from multithread process."""
+    (scan, cluster) = args
+    # print('Updating cluster with {} targets.'.format(len(cluster.targets)))
+    cluster.register_scan(scan)
+    return cluster
+
+
 class MHT:
     """MHT class."""
 
-    def __init__(self, initial_targets=None, cparams=None,
-                 matching_algorithm=None, dbfile=':memory:'):
+    def __init__(self, cparams=None, matching_algorithm=None,
+                 dbfile=':memory:'):
         """Init."""
-        initial_targets = initial_targets or []
         self.matching_algorithm = matching_algorithm
         self.cparams = cparams if cparams else ClusterParameters()
         self.cluster_initer = cluster_initer_factory(self, self.cparams)
 
         self.active_clusters = set()
 
+        self.dbfile = dbfile
         self.dbc = sqlite3.connect(dbfile)
         self.db = self.dbc.cursor()
         self._init_db()
 
-        if initial_targets:
-            self._save_clusters({Cluster.initial(self.cluster_initer, [f])
-                                 for f in initial_targets})
+        self.mppool = mp.Pool()
+
+    def initiate_clusters(self, initial_targets):
+        """Init clusters."""
+        self._save_clusters({Cluster.initial(self.cluster_initer, [f])
+                             for f in initial_targets})
+
+    def _reboot(self):
+        """Reboot filter."""
+        self.dbc = sqlite3.connect(self.dbfile)
+        self.db = self.dbc.cursor()
+        self._init_db()
+        self.active_clusters = set()
 
     def _init_db(self):
         """Init database."""
@@ -62,17 +88,18 @@ class MHT:
         """Remove clusters."""
         self.active_clusters -= clusters
         ids = ', '.join(str(c._id) for c in clusters)
-        self.db.execute("DELETE FROM clusters WHERE id IN ({})".format(ids))
+        self.db.execute("DELETE FROM clusters WHERE id IN ({});".format(ids))
         if self.matching_algorithm == "rtree":
-            self.db.execute("DELETE FROM cluster_index WHERE id IN ({})"
+            self.db.execute("DELETE FROM cluster_index WHERE id IN ({});"
                             .format(ids))
+        self.dbc.commit()
 
     def _load_clusters(self, bbox=None):
         """Load clusters."""
         if self.matching_algorithm is None or bbox is None:
             self.active_clusters = self.query_clusters(None)
         elif self.matching_algorithm == "naive":
-            all_clusters = self.query_clusters(None)
+            all_clusters = self.query_clusters()
             self.active_clusters = {
                 c for c in all_clusters
                 if overlap(c.bbox(), bbox)}
@@ -85,15 +112,17 @@ class MHT:
             pickles = self.db.execute("SELECT data FROM clusters")
         else:
             def get_clusters(bbox):
-                return self.db.execute(
+                #  PySQLite standard formatting doesn't work for some reason..
+                #  bug? Using .format instead, since known data.
+                return self.db.execute((
                     "SELECT clusters.data FROM clusters "
                     "INNER JOIN cluster_index "
                     "ON clusters.id = cluster_index.id WHERE "
-                    "cluster_index.max_x >= ? AND "
-                    "cluster_index.min_x <= ? AND "
-                    "cluster_index.max_y >= ? AND "
-                    "cluster_index.min_y <= ?"
-                    ";", bbox)
+                    "cluster_index.max_x >= {} AND "
+                    "cluster_index.min_x <= {} AND "
+                    "cluster_index.max_y >= {} AND "
+                    "cluster_index.min_y <= {}"
+                    ";").format(*bbox))
 
             # FIXME: Use multiple queries if around wrapping-points!
             pickles = get_clusters(bbox)
@@ -105,17 +134,20 @@ class MHT:
             clusters = self.active_clusters
         if self.matching_algorithm == "rtree":
             for c in clusters:
-                self.db.execute("REPLACE INTO cluster_index "
-                                "(id, min_x, max_x, min_y, max_y) "
-                                "VALUES (?, ?, ?, ?, ?)", (c._id,) + c.bbox())
+                self.db.execute(("REPLACE INTO cluster_index "
+                                 "(id, min_x, max_x, min_y, max_y) "
+                                 "VALUES ({}, {}, {}, {}, {});"
+                                 ).format(c._id, *c.bbox()))
         for c in clusters:
             self.db.execute("UPDATE clusters SET data=? WHERE id=?",
                             (pickle.dumps(c), c._id))
+        self.dbc.commit()
 
-    def _match_clusters(self, r):
+    def _overlapping_clusters(self, r):
         """Select clusters within reasonable range."""
         return {c for c in self.active_clusters
-                if overlap(c.bbox(), r.bbox())}
+                if any(overlap(tr.bbox(), r.bbox())
+                       for t in c.targets for tr in t.tracks.values())}
 
     def _split_clusters(self):
         """Split clusters."""
@@ -144,7 +176,7 @@ class MHT:
         self._load_clusters(scan.sensor.bbox())
 
         for r in scan.reports:
-            cmatches = self._match_clusters(r)
+            cmatches = self._overlapping_clusters(r)
 
             if len(cmatches) > 1:
                 cluster = self._merge_clusters(cmatches)
@@ -166,14 +198,18 @@ class MHT:
     def predict(self, dT, bbox=None):
         """Move to next timestep."""
         self._load_clusters(bbox)
-        for cluster in self.active_clusters:
-            cluster.predict(dT)
+        self.active_clusters = set(
+            self.mppool.map(predict_cluster,
+                            ((c, dT) for c in self.active_clusters)))
         self._save_clusters()
 
     def register_scan(self, scan):
         """Register new scan."""
-        for cluster, creports in self._cluster(scan):
-            cluster.register_scan(Scan(scan.sensor, creports))
+        self.active_clusters = set(
+            self.mppool.map(
+                correct_cluster,
+                ((Scan(scan.sensor, cr), c)
+                 for c, cr in self._cluster(scan))))
         self._split_clusters()
         self._save_clusters()
 
@@ -219,18 +255,19 @@ Tracks:
 class Report:
     """Class for containing reports."""
 
-    def __init__(self, z, R, mfn, source=None):
+    def __init__(self, z, R, mfn, source=None, tpos=None):
         """Init."""
         self.z = z
         self.R = R
         self.mfn = mfn
         self.assigned_tracks = set()
         self.source = source
+        self.tpos = tpos
+        self._bbox = gaussian_bbox(self.z[0:2], self.R[0:2, 0:2], 2)
 
-    def bbox(self, nstd=2):
+    def bbox(self):
         """Return report bbox."""
-        # FIXME: Cache!!!
-        return gaussian_bbox(self.z[0:2], self.R[0:2, 0:2], nstd)
+        return self._bbox
 
     def __repr__(self):
         """Return string representation of reports."""

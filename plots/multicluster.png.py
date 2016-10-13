@@ -20,9 +20,8 @@ np.random.seed(2)
 def draw():
     """Create plot."""
     tracker = mht.MHT(
-        cparams=mht.ClusterParameters(k_max=100, nll_limit=4, hp_limit=5),
-        matching_algorithm="rtree"
-        )
+        cparams=mht.ClusterParameters(k_max=100, hp_limit=5),
+        matching_algorithm="naive")
     target_centroids = [
         ([0.0, 0.0, 1.0, 1.0], np.diag([1, 1, 0.3, 0.3]), 15),
         ([100.0, 100.0, -1.0, -1.0], np.diag([1, 1, 0.3, 0.3]), 5),  # noqa
@@ -77,7 +76,7 @@ def draw():
             ntt += len(sr)
             reports -= sr
             this_scan = mht.Scan(s, list(sr | fsr))
-            mht.plot.plot_scan(this_scan)
+            # mht.plot.plot_scan(this_scan)
             tracker.register_scan(this_scan)
         tracker._load_clusters()
         mlhyp = next(tracker.global_hypotheses())
@@ -92,7 +91,7 @@ def draw():
     plt.plot([t[0] for t in targets], [t[1] for t in targets],
              marker='D', color='y', alpha=.5, linestyle='None')
     mht.plot.plot_hyptrace(mlhyp, covellipse=False)
-    # mht.plot.plot_hypothesis(mlhyp, cseed=2)
+    mht.plot.plot_hypothesis(mlhyp, cseed=2)
     mht.plot.plt.axis([-30, 150, -30, 150])
     mht.plot.plt.ylabel('Tracks')
     for s in sensors:
@@ -101,25 +100,25 @@ def draw():
     print("Clusters:", len(tracker.active_clusters))
     for c in tracker.active_clusters:
         mht.plot.plot_bbox(c)
-    mht.plot.plt.figure()
-    mht.plot.plt.subplot(3, 1, 1)
-    mht.plot.plt.plot(nclusters)
-    mht.plot.plt.axis([-1, k + 1, min(nclusters) - 0.1, max(nclusters) + 0.1])
-    mht.plot.plt.ylabel('# Clusters')
-    mht.plot.plt.subplot(3, 1, 2)
-    mht.plot.plt.plot(ntargets, label='Estimate')
-    mht.plot.plt.plot(ntargets_true, label='True')
-    mht.plot.plt.ylabel('# Targets')
-    mht.plot.plt.legend()
-    mht.plot.plt.axis([-1, k + 1, min(ntargets + ntargets_true) - 0.1,
-                       max(ntargets + ntargets_true) + 0.1])
-    mht.plot.plt.subplot(3, 1, 3)
-    mht.plot.plt.plot(nhyps)
-    mht.plot.plt.axis([-1, k + 1, min(nhyps) - 0.1, max(nhyps) + 0.1])
-    mht.plot.plt.ylabel('# Hyps')
+    # mht.plot.plt.figure()
+    # mht.plot.plt.subplot(3, 1, 1)
+    # mht.plot.plt.plot(nclusters)
+    # mht.plot.plt.axis([-1, k + 1, min(nclusters) - 0.1, max(nclusters) + 0.1])
+    # mht.plot.plt.ylabel('# Clusters')
+    # mht.plot.plt.subplot(3, 1, 2)
+    # mht.plot.plt.plot(ntargets, label='Estimate')
+    # mht.plot.plt.plot(ntargets_true, label='True')
+    # mht.plot.plt.ylabel('# Targets')
+    # mht.plot.plt.legend()
+    # mht.plot.plt.axis([-1, k + 1, min(ntargets + ntargets_true) - 0.1,
+                       # max(ntargets + ntargets_true) + 0.1])
+    # mht.plot.plt.subplot(3, 1, 3)
+    # mht.plot.plt.plot(nhyps)
+    # mht.plot.plt.axis([-1, k + 1, min(nhyps) - 0.1, max(nhyps) + 0.1])
+    # mht.plot.plt.ylabel('# Hyps')
 
-    for tr in mlhyp.tracks:
-        print(tr.trlen, len(set(tr.sources)), tr.sources)
+    # for tr in mlhyp.tracks:
+        # print(tr.trlen, len(set(tr.sources)), tr.sources)
 
 
 def parse_args(*argv):

@@ -24,8 +24,7 @@ class ClusterParameters:
 
 ClusterParameters.k_max = 100
 ClusterParameters.hp_limit = LARGE
-ClusterParameters.nll_limit = LARGE
-ClusterParameters.init_target_tracker = DefaultTargetInit(0.1)
+ClusterParameters.init_target_tracker = DefaultTargetInit(0.1, 0.1)
 
 
 class Cluster:
@@ -78,7 +77,7 @@ class Cluster:
 
         # Ambiguous tracks
         self.ambiguous_tracks = [
-            tr for c in clusters for tr in c.ambiguous_tracks]
+            atrs for c in clusters for atrs in c.ambiguous_tracks]
 
         return self
 
@@ -262,7 +261,7 @@ class Cluster:
     def bbox(self):
         """Get minimal boundingbox."""
         # FIXME: Cache!!!
-        bboxes = (tr.filter.bbox()
+        bboxes = (tr.bbox()
                   for t in self.targets for tr in t.tracks.values())
         minbox = next(bboxes)
         for bbox in bboxes:

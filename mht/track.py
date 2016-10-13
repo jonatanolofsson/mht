@@ -96,11 +96,9 @@ class Track:
 
     def match_score(self, r, sensor):
         """Find the score of assigning a report to the track."""
-        if overlap(self.filter.bbox(), sensor.bbox()):
-            nll = self.filter.nll(r)
-            if nll < self.target.cluster.params.nll_limit:
-                return nll - self.found_score(sensor) \
-                    - self.miss_score(sensor)
+        if overlap(self.bbox(), sensor.bbox()):
+            return self.filter.nll(r) + self.found_score(sensor) \
+                - self.miss_score(sensor)
             return LARGE
         return LARGE
 
@@ -114,6 +112,10 @@ class Track:
         """Find the score of not assigning any report to the track."""
         return sensor.score_miss \
             * overlap_pa(self.filter.bbox(), sensor.bbox())
+
+    def bbox(self):
+        """Return bbox."""
+        return self.filter.bbox()
 
     def __repr__(self):
         """Return string representation of object."""

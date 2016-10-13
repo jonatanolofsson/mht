@@ -49,7 +49,7 @@ def overlap(a, b):
 
 
 def overlap_pa(a, b):
-    """Return percentage of a being in b."""
+    """Return percentage of bbox a being in b."""
     intersection = max(0, min(a[1], b[1]) - max(a[0], b[0])) \
         * max(0, min(a[3], b[3]) - max(a[2], b[2]))
     aa = (a[1] - a[0]) * (a[3] - a[2])
@@ -66,21 +66,19 @@ def eigsorted(cov):
 def cov_ellipse(cov, nstd):
     """Get the covariance ellipse."""
     vals, vecs = eigsorted(cov)
+    r1, r2 = nstd * np.sqrt(vals)
     theta = np.degrees(np.arctan2(*vecs[:, 0][::-1]))
 
-    # Width and height are "full" widths, not radius
-    width, height = 2 * nstd * np.sqrt(vals)
-    return width, height, theta
+    return r1, r2, theta
 
 
 def gaussian_bbox(x, P, nstd=2):
     """Return boudningbox for gaussian."""
-    width, height, theta = cov_ellipse(P, nstd)
-    width, height = width / 2, height / 2
-    ux = width * cos(theta)
-    uy = width * sin(theta)
-    vx = height * cos(theta + pi/2)
-    vy = height * sin(theta + pi/2)
+    r1, r2, theta = cov_ellipse(P, nstd)
+    ux = r1 * cos(theta)
+    uy = r1 * sin(theta)
+    vx = r2 * cos(theta + pi/2)
+    vy = r2 * sin(theta + pi/2)
 
     dx = sqrt(ux*ux + vx*vx)
     dy = sqrt(uy*uy + vy*vy)
