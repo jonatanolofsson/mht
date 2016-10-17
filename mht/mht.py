@@ -84,6 +84,10 @@ class MHT:
         self.db.execute(
             "CREATE TABLE IF NOT EXISTS clusters ("
             "id     INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,"
+            "min_x  REAL,"
+            "max_x  REAL,"
+            "min_y  REAL,"
+            "max_y  REAL,"
             "data   BLOB"
             ");")
         if self.matching_algorithm == "rtree":
@@ -112,13 +116,13 @@ class MHT:
     def _load_clusters(self, bbox=None):
         """Load clusters."""
         if self.matching_algorithm is None or bbox is None:
-            self.active_clusters = self.query_clusters(None)
+            self.active_clusters = self.query_clusters()
         elif self.matching_algorithm == "naive":
             all_clusters = self.query_clusters()
             self.active_clusters = {
                 c for c in all_clusters
                 if overlap(c.bbox(), bbox)}
-        elif self.matching_algorithm == "rtree":
+        else:
             self.active_clusters = self.query_clusters(bbox)
 
     def query_clusters(self, bbox=None):
@@ -127,17 +131,26 @@ class MHT:
             pickles = self.db.execute("SELECT data FROM clusters")
         else:
             def get_clusters(bbox):
-                #  PySQLite standard formatting doesn't work for some reason..
-                #  bug? Using .format instead, since known data.
-                return self.db.execute((
-                    "SELECT clusters.data FROM clusters "
-                    "INNER JOIN cluster_index "
-                    "ON clusters.id = cluster_index.id WHERE "
-                    "cluster_index.max_x >= {} AND "
-                    "cluster_index.min_x <= {} AND "
-                    "cluster_index.max_y >= {} AND "
-                    "cluster_index.min_y <= {}"
-                    ";").format(*bbox))
+                if self.matching_algorithm == "db":
+                    return self.db.execute((
+                        "SELECT data FROM clusters WHERE "
+                        "max_x >= {} AND "
+                        "min_x <= {} AND "
+                        "max_y >= {} AND "
+                        "min_y <= {}"
+                        ";").format(*bbox))
+                elif self.matching_algorithm == "rtree":
+                    #  PySQLite standard formatting doesn't work for some
+                    #  reason.. bug? Using .format instead, since known data.
+                    return self.db.execute((
+                        "SELECT clusters.data FROM clusters "
+                        "INNER JOIN cluster_index "
+                        "ON clusters.id = cluster_index.id WHERE "
+                        "cluster_index.max_x >= {} AND "
+                        "cluster_index.min_x <= {} AND "
+                        "cluster_index.max_y >= {} AND "
+                        "cluster_index.min_y <= {}"
+                        ";").format(*bbox))
 
             # FIXME: Use multiple queries if around wrapping-points!
             pickles = get_clusters(bbox)
@@ -154,8 +167,9 @@ class MHT:
                                  "VALUES ({}, {}, {}, {}, {});"
                                  ).format(c._id, *c.bbox()))
         for c in clusters:
-            self.db.execute("UPDATE clusters SET data=? WHERE id=?",
-                            (pickle.dumps(c), c._id))
+            self.db.execute("UPDATE clusters SET "
+                            "min_x=?, max_x=?, min_y=?, max_y=?, data=? "
+                            "WHERE id=?", c.bbox() + (pickle.dumps(c), c._id))
         self.dbc.commit()
 
     def _overlapping_clusters(self, r):
