@@ -43,8 +43,7 @@ class ClusterHypothesis:
         missed = set(phyp.tracks) - {tr for _, tr in assignments}
         self.tracks += [tr.missed(sensor)
                         for tr in missed
-                        # if tr.exist_score > 1]
-                        ]
+                        if tr.exist_score > 1]
 
         self.targets = {tr.target for tr in self.tracks}
 

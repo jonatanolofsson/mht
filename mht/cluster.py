@@ -120,7 +120,7 @@ class Cluster:
                                 if tr.target in split_targets}
                                for atrs in self.ambiguous_tracks]
         cl.ambiguous_tracks = [atrs for atrs in cl.ambiguous_tracks
-                               if len(atrs) > 1]
+                               if len({tr.target for tr in atrs}) > 1]
 
         return cl
 
@@ -192,9 +192,9 @@ class Cluster:
             set().union(*(tr.children.values() for tr in atrs)) & tracks
             for atrs in self.ambiguous_tracks]
         self.ambiguous_tracks = [atrs for atrs in self.ambiguous_tracks
-                                 if len(atrs) > 1]
+                                 if len({tr.target for tr in atrs}) > 1]
         for r in scan.reports:
-            if len(r.assigned_tracks) > 1:
+            if len({tr.target for tr in r.assigned_tracks}) > 1:
                 self.ambiguous_tracks.append(r.assigned_tracks)
 
     def _assignment_hypotheses(self, scan, new_targets):
