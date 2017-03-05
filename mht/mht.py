@@ -43,7 +43,6 @@ def predict_cluster(args):
 def correct_cluster(args):
     """Update cluster from multithread process."""
     (scan, cluster) = args
-    # print('Updating cluster with {} targets.'.format(len(cluster.targets)))
     cluster.register_scan(scan)
     return cluster
 
@@ -66,6 +65,7 @@ class MHT:
         self._init_db()
 
         self.mppool = mp.Pool()
+        self.npresplit = 0
 
     def initiate_clusters(self, initial_targets):
         """Init clusters."""
@@ -180,6 +180,7 @@ class MHT:
 
     def _split_clusters(self):
         """Split clusters."""
+        self.npresplit = len(self.active_clusters)
         new_clusters = set()
         old_clusters = set()
         for c in self.active_clusters:

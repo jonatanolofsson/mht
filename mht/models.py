@@ -32,10 +32,10 @@ class ConstantVelocityModel:
                        [0, 1, 0, dT],
                        [0, 0, 1, 0],
                        [0, 0, 0, 1]])
-        Q = np.array([[dT ** 3 / 3, 0, dT ** 2 / 2, 0],
-                       [0, dT ** 3 / 3, 0, dT ** 2 / 2],
-                       [0, 0, dT, 0],
-                       [0, 0, 0, dT]]) * self.q
+        Q = np.array([[dT ** 3 / 3, 0,           dT ** 2 / 2, 0],
+                      [0,           dT ** 3 / 3, 0,           dT ** 2 / 2],
+                      [dT ** 2 / 2, 0,           dT,          0],
+                      [0,           dT ** 2 / 2, 0,           dT]]) * self.q
         x = F @ xprev
         P = F @ Pprev @ F.T + Q
 

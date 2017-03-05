@@ -121,7 +121,6 @@ class Cluster:
                                for atrs in self.ambiguous_tracks]
         cl.ambiguous_tracks = [atrs for atrs in cl.ambiguous_tracks
                                if len({tr.target for tr in atrs}) > 1]
-
         return cl
 
     def split(self, initer):
