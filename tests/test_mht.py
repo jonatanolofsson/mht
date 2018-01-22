@@ -29,7 +29,8 @@ class TestMHT(unittest.TestCase):
 
     def setUp(self):
         """Set up testcase."""
-        self.tracker = mht.MHT(initial_targets=[
+        self.tracker = mht.MHT()
+        self.tracker.initiate_clusters([
             mht.kf.KFilter(
                 mht.models.ConstantVelocityModel(0.1),
                 np.array([0.0, 0.0, 1.0, 1.0]),

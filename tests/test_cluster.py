@@ -93,7 +93,8 @@ class TestClustering(unittest.TestCase):
 
     def test_cluster_merged_targets(self):
         """Test cluster merging."""
-        tracker = mht.MHT(initial_targets=[
+        tracker = mht.MHT()
+        tracker.initiate_clusters([
             mht.kf.KFilter(
                 mht.models.ConstantVelocityModel(0.1),
                 np.array([0.0, 0.0, 1.0, 1.0]),

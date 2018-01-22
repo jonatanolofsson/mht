@@ -21,7 +21,7 @@ import os
 import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from mht.hypgen import murty, permgen, lap
+from mht.hypgen import murty, permgen
 
 MURTY_COST = np.matrix([[7, 51, 52, 87, 38, 60, 74, 66, 0, 20],
                         [50, 12, 0, 64, 8, 53, 0, 46, 76, 42],
@@ -35,15 +35,15 @@ MURTY_COST = np.matrix([[7, 51, 52, 87, 38, 60, 74, 66, 0, 20],
                         [27, 0, 39, 53, 46, 24, 69, 46, 23, 1]])
 
 
-class TestLap(unittest.TestCase):
-    """Test LAP solver."""
+# class TestLap(unittest.TestCase):
+    # """Test LAP solver."""
 
-    def test_lap(self):
-        """Test LAP solver."""
-        res = lap(MURTY_COST)
-        self.assertAlmostEqual(
-            MURTY_COST[range(len(res[1])), res[1]].sum(),
-            res[0])
+    # def test_lap(self):
+        # """Test LAP solver."""
+        # res = lap(MURTY_COST)
+        # self.assertAlmostEqual(
+            # MURTY_COST[range(len(res[1])), res[1]].sum(),
+            # res[0])
 
 
 class TestMurty(unittest.TestCase):
@@ -68,7 +68,9 @@ class TestMurty(unittest.TestCase):
         """Test asymmetric inputs for murty."""
         pre_res = None
         n = 0
+        # print(MURTY_COST[:5, :])
         for res in murty(MURTY_COST[:5, :]):
+            # print(res)
             self.assertAlmostEqual(
                 MURTY_COST[range(len(res[1])), res[1]].sum(), res[0])
             if pre_res is not None:
@@ -81,7 +83,7 @@ class TestMurty(unittest.TestCase):
         """Test asymmetric inputs for murty."""
         pre_res = None
         n = 0
-        # print(MURTY_COST[:2, :]
+        # print(MURTY_COST[:2, :])
         for res in murty(MURTY_COST[:2, :]):
             # print(res)
             self.assertAlmostEqual(
