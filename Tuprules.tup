@@ -13,7 +13,7 @@ CFLAGS += -O3
 CFLAGS += -fPIC
 CFLAGS += -isystem/usr/include/eigen3
 
-PY_CFLAGS = -shared -I$(TOP)/deps/pybind11/include -I/usr/include/python3.6m -I/usr/include/python3.6m -Wno-nested-anon-types  -Wno-unused-result -Wsign-compare -march=x86-64 -mtune=generic -O2 -pipe -fstack-protector-strong -fno-plt -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes
+PY_CFLAGS = -shared -I$(TOP)/deps/pybind11/include -I/usr/include/python3.7m -I/usr/include/python3.7m -Wno-nested-anon-types  -Wno-unused-result -Wsign-compare -march=x86-64 -mtune=generic -O2 -pipe -fstack-protector-strong -fno-plt -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes
 
 COMPILER = clang++ -Qunused-arguments
 
