@@ -105,6 +105,7 @@ class Cluster:
         cl.targets = split_targets
 
         # Hypotheses
+        # Sneaky sneaky! This is where duplicate hypotheses are deleted!
         cl.hypotheses = sorted(list(
             {hyp for hyp in (h.split(split_targets)
                              for h in self.hypotheses) if hyp}))
