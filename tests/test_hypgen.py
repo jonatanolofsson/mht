@@ -49,12 +49,12 @@ MURTY_COST = np.matrix([[7, 51, 52, 87, 38, 60, 74, 66, 0, 20],
 class TestMurty(unittest.TestCase):
     """Test Murty algorithm."""
 
-    def disabled_test_murty(self):
+    def test_murty(self):
         """Test murty algo."""
         pre_res = None
         n = 0
         for res in murty(MURTY_COST):
-            # print('res:', res)
+            print('res:', res, MURTY_COST[range(len(res[1])), res[1]].sum())
             self.assertAlmostEqual(
                 MURTY_COST[range(len(res[1])), res[1]].sum(),
                 res[0])

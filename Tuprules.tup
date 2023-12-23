@@ -12,6 +12,7 @@ CFLAGS += -Wextra
 CFLAGS += -O3
 CFLAGS += -fPIC
 CFLAGS += -isystem/usr/include/eigen3
+CFLAGS += -isystem/usr/include/Python3.11
 
 PY_CFLAGS = -shared -Wno-nested-anon-types  -Wno-unused-result -Wsign-compare -march=x86-64 -mtune=generic -O2 -pipe -fstack-protector-strong -fno-plt -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes
 
